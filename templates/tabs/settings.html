@@ -1,0 +1,498 @@
+<!-- Server Selector -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <h5><i class="fas fa-server"></i> Select Server</h5>
+            <hr>
+            <select class="form-select" id="server-selector" onchange="loadServerSettings()">
+                <option value="">Loading servers...</option>
+            </select>
+            <small class="text-muted">Choose which server's settings to view and edit</small>
+        </div>
+    </div>
+</div>
+
+<div id="settings-content" style="display: none;">
+<div class="row">
+    <!-- Bot Configuration Card -->
+    <div class="col-lg-6 mb-4">
+        <div class="dashboard-card">
+            <h5><i class="fas fa-robot"></i> Bot Configuration</h5>
+            <hr>
+            
+            <div class="mb-3">
+                <label class="form-label">Command Prefix</label>
+                <input type="text" class="form-control" value="!" readonly>
+                <small class="text-muted">Default command prefix (global setting)</small>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Bot Name</label>
+                <input type="text" class="form-control" id="bot-name-display" value="Game Lounge Train" readonly>
+                <small class="text-muted">Bot name (global setting)</small>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Maintenance Mode</label>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="maintenanceMode">
+                    <label class="form-check-label" for="maintenanceMode">
+                        <span id="maintenance-label">Loading...</span>
+                    </label>
+                </div>
+                <small class="text-muted">Blocks all commands except whitelisted ones (global setting)</small>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Server-Specific Settings Card -->
+    <div class="col-lg-6 mb-4">
+        <div class="dashboard-card">
+            <h5><i class="fas fa-cog"></i> Server Settings</h5>
+            <hr>
+            
+            <div class="mb-3">
+                <label class="form-label">Server Description</label>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="server-description" placeholder="Enter server description">
+                    <button class="btn btn-primary" onclick="saveServerDescription()">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                </div>
+                <small class="text-muted">Custom description for notifications (server-specific)</small>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Default Notification Time</label>
+                <div class="input-group">
+                    <select class="form-select" id="notification-time">
+                        <option value="30">30 minutes before</option>
+                        <option value="60" selected>60 minutes before</option>
+                        <option value="90">90 minutes before</option>
+                        <option value="120">120 minutes before</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="saveNotificationTime()">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                </div>
+                <small class="text-muted">Default time for train notifications (server-specific)</small>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Attendance Report Interval (minutes)</label>
+                <div class="input-group">
+                    <input type="number" class="form-control" id="attendance-interval" value="25" min="5" max="120">
+                    <button class="btn btn-primary" onclick="saveAttendanceInterval()">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                </div>
+                <small class="text-muted">How often attendance reports are sent during trains</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="dashboard-card">
+            <h5><i class="fas fa-bell"></i> Notification Toggles</h5>
+            <hr>
+            
+            <div class="mb-2">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="settingAutoPing" checked>
+                    <label class="form-check-label" for="settingAutoPing">Auto Ping Notifications</label>
+                </div>
+            </div>
+            <div class="mb-2">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="settingBackupSystem" checked>
+                    <label class="form-check-label" for="settingBackupSystem">Backup System</label>
+                </div>
+            </div>
+            <div class="mb-2">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="settingOneHourWarnings" checked>
+                    <label class="form-check-label" for="settingOneHourWarnings">1 Hour Warnings</label>
+                </div>
+            </div>
+            <div class="mb-2">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="settingTenMinWarnings" checked>
+                    <label class="form-check-label" for="settingTenMinWarnings">10 Minute Warnings</label>
+                </div>
+            </div>
+            <div class="mb-2">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="settingAutoAnnouncements" checked>
+                    <label class="form-check-label" for="settingAutoAnnouncements">Auto Announcements</label>
+                </div>
+            </div>
+            
+            <button class="btn btn-primary mt-2" onclick="saveNotificationToggles()">
+                <i class="fas fa-save"></i> Save Notification Settings
+            </button>
+        </div>
+    </div>
+    
+    <div class="col-lg-6 mb-4">
+        <div class="dashboard-card">
+            <h5><i class="fab fa-twitch"></i> Twitch Settings</h5>
+            <hr>
+            
+            <div class="mb-2">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="settingTwitchChatBot" checked>
+                    <label class="form-check-label" for="settingTwitchChatBot">Twitch Chat Bot</label>
+                </div>
+            </div>
+            <div class="mb-2">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="settingComprehensiveReports" checked>
+                    <label class="form-check-label" for="settingComprehensiveReports">Comprehensive Reports</label>
+                </div>
+            </div>
+            
+            <button class="btn btn-primary mt-2" onclick="saveTwitchToggles()">
+                <i class="fas fa-save"></i> Save Twitch Settings
+            </button>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Backup Management Card -->
+<div class="row">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <h5><i class="fas fa-database"></i> Backup Management</h5>
+            <hr>
+            
+            <div class="row">
+                <div class="col-md-3 col-6 mb-3 text-center">
+                    <h4 class="text-info">Daily</h4>
+                    <p class="text-muted">Backup Schedule</p>
+                </div>
+                <div class="col-md-3 col-6 mb-3 text-center">
+                    <h4 class="text-success">7 Days</h4>
+                    <p class="text-muted">Retention</p>
+                </div>
+                <div class="col-md-3 col-6 mb-3 text-center">
+                    <h4 id="last-backup">Never</h4>
+                    <p class="text-muted">Last Backup</p>
+                </div>
+                <div class="col-md-3 col-6 mb-3 text-center">
+                    <button class="btn btn-primary" onclick="createBackup()">
+                        <i class="fas fa-save"></i> Create Backup
+                    </button>
+                </div>
+            </div>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                Backups include all train schedules, participants, users, and settings. Use <code>/backups</code> to view available backups.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let isUpdatingMaintenance = false;
+let selectedGuildId = null;
+
+async function loadSettingsData() {
+    // Load global settings
+    try {
+        const statusResp = await fetch('/api/bot/status');
+        if (statusResp.ok) {
+            const statusData = await statusResp.json();
+            if (statusData.user && statusData.user.name) {
+                document.getElementById('bot-name-display').value = statusData.user.name;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load bot status:', error);
+    }
+    
+    try {
+        const maintResp = await fetch('/api/maintenance');
+        if (maintResp.ok) {
+            const maintData = await maintResp.json();
+            const checkbox = document.getElementById('maintenanceMode');
+            const label = document.getElementById('maintenance-label');
+            
+            checkbox.checked = maintData.enabled || false;
+            label.textContent = maintData.enabled ? 
+                'Maintenance mode is ENABLED' : 
+                'Maintenance mode is disabled';
+            label.className = maintData.enabled ? 'text-warning fw-bold' : '';
+        }
+    } catch (error) {
+        console.error('Failed to load maintenance mode:', error);
+        document.getElementById('maintenance-label').textContent = 'Error loading status';
+    }
+    
+    // Load servers
+    await loadServers();
+}
+
+async function loadServers() {
+    try {
+        const response = await fetch('/api/guilds');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        const guilds = data.guilds || [];
+        
+        const selector = document.getElementById('server-selector');
+        selector.innerHTML = '';
+        
+        if (guilds.length === 0) {
+            selector.innerHTML = '<option value="">No servers found</option>';
+            return;
+        }
+        
+        selector.innerHTML = '<option value="">Select a server...</option>';
+        guilds.forEach(guild => {
+            const option = document.createElement('option');
+            option.value = guild.id;
+            option.textContent = guild.name;
+            selector.appendChild(option);
+        });
+        
+        // Auto-select first server if only one
+        if (guilds.length === 1) {
+            selector.value = guilds[0].id;
+            await loadServerSettings();
+        }
+    } catch (error) {
+        console.error('Failed to load servers:', error);
+        document.getElementById('server-selector').innerHTML = '<option value="">Error loading servers</option>';
+    }
+}
+
+async function loadServerSettings() {
+    const selector = document.getElementById('server-selector');
+    selectedGuildId = selector.value;
+    
+    if (!selectedGuildId) {
+        document.getElementById('settings-content').style.display = 'none';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/settings/${selectedGuildId}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        const settings = data.settings;
+        
+        document.getElementById('server-description').value = settings.server_description || '';
+        document.getElementById('notification-time').value = settings.notification_time || 60;
+        document.getElementById('attendance-interval').value = settings.attendance_interval_minutes || 25;
+        
+        document.getElementById('settingAutoPing').checked = settings.auto_ping_enabled !== false;
+        document.getElementById('settingBackupSystem').checked = settings.backup_system_enabled !== false;
+        document.getElementById('settingOneHourWarnings').checked = settings.one_hour_warnings_enabled !== false;
+        document.getElementById('settingTenMinWarnings').checked = settings.ten_minute_warnings_enabled !== false;
+        document.getElementById('settingAutoAnnouncements').checked = settings.auto_announcements_enabled !== false;
+        document.getElementById('settingTwitchChatBot').checked = settings.twitch_chat_bot_enabled !== false;
+        document.getElementById('settingComprehensiveReports').checked = settings.comprehensive_reports_enabled !== false;
+        
+        document.getElementById('settings-content').style.display = 'block';
+    } catch (error) {
+        console.error('Failed to load server settings:', error);
+        alert('Failed to load server settings. Please try again.');
+    }
+}
+
+async function saveServerDescription() {
+    if (!selectedGuildId) {
+        alert('Please select a server first');
+        return;
+    }
+    
+    const description = document.getElementById('server-description').value;
+    
+    try {
+        const response = await fetch(`/api/settings/${selectedGuildId}/server-description`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ description: description })
+        });
+        
+        if (response.ok) {
+            showAlert('Server description saved successfully!', 'success');
+        } else {
+            const error = await response.json();
+            showAlert(`Failed to save: ${error.error || 'Unknown error'}`, 'danger');
+        }
+    } catch (error) {
+        console.error('Error saving server description:', error);
+        showAlert('Error saving server description. Please try again.', 'danger');
+    }
+}
+
+async function saveNotificationTime() {
+    if (!selectedGuildId) {
+        alert('Please select a server first');
+        return;
+    }
+    
+    const minutes = parseInt(document.getElementById('notification-time').value);
+    
+    try {
+        const response = await fetch(`/api/settings/${selectedGuildId}/notification-time`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ minutes: minutes })
+        });
+        
+        if (response.ok) {
+            showAlert('Notification time saved successfully!', 'success');
+        } else {
+            const error = await response.json();
+            showAlert(`Failed to save: ${error.error || 'Unknown error'}`, 'danger');
+        }
+    } catch (error) {
+        console.error('Error saving notification time:', error);
+        showAlert('Error saving notification time. Please try again.', 'danger');
+    }
+}
+
+function showAlert(message, type) {
+    // Create alert element
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.role = 'alert';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Insert at top of settings content
+    const settingsContent = document.getElementById('settings-content');
+    settingsContent.insertBefore(alertDiv, settingsContent.firstChild);
+    
+    // Auto-dismiss after 3 seconds
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+
+async function saveAttendanceInterval() {
+    if (!selectedGuildId) { alert('Please select a server first'); return; }
+    const minutes = parseInt(document.getElementById('attendance-interval').value);
+    try {
+        const response = await fetch(`/api/settings/${selectedGuildId}/notifications`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ attendance_interval_minutes: minutes })
+        });
+        if (response.ok) {
+            showAlert('Attendance interval saved!', 'success');
+        } else {
+            showAlert('Failed to save attendance interval', 'danger');
+        }
+    } catch (error) {
+        console.error('Error saving attendance interval:', error);
+        showAlert('Error saving. Please try again.', 'danger');
+    }
+}
+
+async function saveNotificationToggles() {
+    if (!selectedGuildId) { alert('Please select a server first'); return; }
+    try {
+        const response = await fetch(`/api/settings/${selectedGuildId}/notifications`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                auto_ping_enabled: document.getElementById('settingAutoPing').checked,
+                backup_system_enabled: document.getElementById('settingBackupSystem').checked,
+                one_hour_warnings_enabled: document.getElementById('settingOneHourWarnings').checked,
+                ten_minute_warnings_enabled: document.getElementById('settingTenMinWarnings').checked,
+                auto_announcements_enabled: document.getElementById('settingAutoAnnouncements').checked
+            })
+        });
+        if (response.ok) {
+            showAlert('Notification settings saved!', 'success');
+        } else {
+            showAlert('Failed to save notification settings', 'danger');
+        }
+    } catch (error) {
+        console.error('Error saving notification settings:', error);
+        showAlert('Error saving. Please try again.', 'danger');
+    }
+}
+
+async function saveTwitchToggles() {
+    if (!selectedGuildId) { alert('Please select a server first'); return; }
+    try {
+        const response = await fetch(`/api/settings/${selectedGuildId}/notifications`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                twitch_chat_bot_enabled: document.getElementById('settingTwitchChatBot').checked,
+                comprehensive_reports_enabled: document.getElementById('settingComprehensiveReports').checked
+            })
+        });
+        if (response.ok) {
+            showAlert('Twitch settings saved!', 'success');
+        } else {
+            showAlert('Failed to save Twitch settings', 'danger');
+        }
+    } catch (error) {
+        console.error('Error saving Twitch settings:', error);
+        showAlert('Error saving. Please try again.', 'danger');
+    }
+}
+
+function createBackup() {
+    alert('Use Discord command: /backups');
+}
+
+document.getElementById('maintenanceMode').addEventListener('change', async function() {
+    if (isUpdatingMaintenance) return;
+    
+    const enabled = this.checked;
+    const label = document.getElementById('maintenance-label');
+    
+    try {
+        isUpdatingMaintenance = true;
+        
+        const response = await fetch('/api/maintenance', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ enabled: enabled })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            label.textContent = enabled ? 
+                'Maintenance mode is ENABLED' : 
+                'Maintenance mode is disabled';
+            label.className = enabled ? 'text-warning fw-bold' : '';
+        } else {
+            const error = await response.json();
+            alert(`Failed to update maintenance mode: ${error.message || 'Unknown error'}`);
+            this.checked = !enabled;
+        }
+    } catch (error) {
+        console.error('Error toggling maintenance mode:', error);
+        alert('Error updating maintenance mode. Please try again.');
+        this.checked = !enabled;
+    } finally {
+        isUpdatingMaintenance = false;
+    }
+});
+
+document.getElementById('settings-tab').addEventListener('shown.bs.tab', loadSettingsData);
+</script>

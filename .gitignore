@@ -1,0 +1,7 @@
+# Backup files — must never be committed; these may contain live operational data
+# including Discord user records, guild IDs, and notification settings.
+backups/
+*.backup
+*.bak
+*.dump
+*.sql.gz

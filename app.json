@@ -1,0 +1,21 @@
+{
+  "name": "discord-bot-server",
+  "description": "Advanced Discord bot hosting solution with robust server management capabilities",
+  "scripts": {
+    "start": "python main.py",
+    "web": "python main.py",
+    "release": "python main.py"
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "free"
+    }
+  },
+  "stack": "container",
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+# Exclude backup files from the Docker build context.
+# Backup files may contain live operational data (Discord user records, guild IDs,
+# train schedules, notification settings). They must never be baked into a
+# container image, even if accidentally committed to the repository.
+backups/
+*.backup
+*.bak
+*.dump
+*.sql.gz

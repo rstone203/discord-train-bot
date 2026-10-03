@@ -1,0 +1,5 @@
+[console_scripts]
+bot-server = main:main
+deploy-bot = main:main
+discord-bot = main:main
+start-bot = main:main

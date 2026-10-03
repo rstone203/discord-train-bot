@@ -1,0 +1,2690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Train Bot Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .dashboard-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .status-online { color: #28a745; }
+        .status-offline { color: #dc3545; }
+        .card { margin-bottom: 1rem; }
+        .train-icon { color: #667eea; }
+        .stat-number { font-size: 2rem; font-weight: bold; }
+        .footer { margin-top: 3rem; text-align: center; color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="dashboard-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1><i class="fas fa-train train-icon"></i> Train Bot Dashboard</h1>
+                    <p class="mb-0">Discord Bot Management & Monitoring</p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <div class="status-indicator">
+                        <h4>
+                            <i class="fas fa-circle {% if bot_status.online %}status-online{% else %}status-offline{% endif %}"></i>
+                            {{ bot_status.status }}
+                        </h4>
+                        {% if bot_status.online %}
+                        <small>Uptime: {{ (bot_status.uptime_seconds // 3600) }}h {{ ((bot_status.uptime_seconds % 3600) // 60) }}m</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Bot Statistics -->
+        <div class="row">
+            <div class="col-md-12">
+                <h3><i class="fas fa-chart-bar"></i> Bot Statistics</h3>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-server fa-2x text-primary mb-2"></i>
+                        <div class="stat-number text-primary">{{ db_stats.guilds }}</div>
+                        <small class="text-muted">Servers</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-users fa-2x text-success mb-2"></i>
+                        <div class="stat-number text-success">{{ db_stats.users }}</div>
+                        <small class="text-muted">Users</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-comments fa-2x text-info mb-2"></i>
+                        <div class="stat-number text-info">{{ db_stats.messages }}</div>
+                        <small class="text-muted">Messages</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-exchange-alt fa-2x text-warning mb-2"></i>
+                        <div class="stat-number text-warning">{{ db_stats.active_forwarding }}</div>
+                        <small class="text-muted">Active Forwards</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-hashtag fa-2x text-secondary mb-2"></i>
+                        <div class="stat-number text-secondary">{{ db_stats.channels }}</div>
+                        <small class="text-muted">Channels</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-robot fa-2x train-icon mb-2"></i>
+                        <div class="stat-number train-icon">1</div>
+                        <small class="text-muted">Bot Online</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Train Management Section -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <h3><i class="fas fa-train"></i> Train Management</h3>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- Active Train Schedules -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-calendar-alt"></i> Active Train Schedules
+                            <span class="badge bg-success ms-2" id="scheduleCount">Loading...</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="trainSchedules">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">Loading train schedules...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Participant Management -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-users"></i> Participant Management
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="scheduleSelect" class="form-label">Select Schedule:</label>
+                            <select class="form-select" id="scheduleSelect" onchange="loadParticipants()">
+                                <option value="">Choose a schedule...</option>
+                            </select>
+                        </div>
+                        
+                        <div id="participantsList">
+                            <p class="text-muted">Select a schedule to view participants</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Message Forwarding Section -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <h3><i class="fas fa-share-alt"></i> Message Forwarding</h3>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-exchange-alt"></i> Forwarding Configurations
+                            <span class="badge bg-info ms-2" id="forwardingCount">Loading...</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="forwardingConfigs">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">Loading forwarding configurations...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bot Commands Interface -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <h3><i class="fas fa-terminal"></i> Bot Commands Interface</h3>
+            </div>
+        </div>
+        
+        <!-- Command Categories -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-robot"></i> Execute Bot Commands
+                            <span class="badge bg-primary ms-2">All Commands Available</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Command Output Area -->
+                        <div id="commandOutput" class="mb-4" style="display: none;">
+                            <div class="card bg-light border-success">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0"><i class="fas fa-check-circle"></i> Command Result</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="commandResult"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Command Tabs -->
+                        <ul class="nav nav-pills mb-3" id="commandTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="basic-tab" data-bs-toggle="pill" data-bs-target="#basic-commands" type="button" role="tab">
+                                    <i class="fas fa-info-circle"></i> Basic Info
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="twitchcord-tab" data-bs-toggle="pill" data-bs-target="#twitchcord-commands" type="button" role="tab">
+                                    <i class="fas fa-gamepad"></i> TwitchCord
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="streams-tab" data-bs-toggle="pill" data-bs-target="#stream-commands" type="button" role="tab">
+                                    <i class="fas fa-video"></i> Streams
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="forwarding-tab" data-bs-toggle="pill" data-bs-target="#forwarding-commands" type="button" role="tab">
+                                    <i class="fas fa-share-alt"></i> Forwarding
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="database-tab" data-bs-toggle="pill" data-bs-target="#database-commands" type="button" role="tab">
+                                    <i class="fas fa-database"></i> Database
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="support-tab" data-bs-toggle="pill" data-bs-target="#support-commands" type="button" role="tab">
+                                    <i class="fas fa-life-ring"></i> Support
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="notifications-tab" data-bs-toggle="pill" data-bs-target="#notification-commands" type="button" role="tab">
+                                    <i class="fas fa-bell"></i> Notifications
+                                </button>
+                            </li>
+                        </ul>
+                        
+                        <!-- Command Tab Content -->
+                        <div class="tab-content" id="commandTabContent">
+                            <!-- Basic Information Commands -->
+                            <div class="tab-pane fade show active" id="basic-commands" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-primary w-100" onclick="showInterface('ping')">
+                                            <i class="fas fa-wifi"></i> Check Latency
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-info w-100" onclick="showInterface('info')">
+                                            <i class="fas fa-info-circle"></i> Bot Information
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-secondary w-100" onclick="showInterface('uptime')">
+                                            <i class="fas fa-clock"></i> Bot Uptime
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-warning w-100" onclick="showInterface('status')">
+                                            <i class="fas fa-heartbeat"></i> Forwarding Status
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-success w-100" onclick="showInterface('servers')">
+                                            <i class="fas fa-server"></i> Connected Servers
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-dark w-100" onclick="showInterface('updates')">
+                                            <i class="fas fa-history"></i> Recent Updates
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- TwitchCord Commands -->
+                            <div class="tab-pane fade" id="twitchcord-commands" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-purple w-100" onclick="showInterface('twitchhelp')" style="border-color: #9146ff; color: #9146ff;">
+                                            <i class="fab fa-twitch"></i> TwitchCord Help
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-info w-100" onclick="showInterface('twitchstatus')">
+                                            <i class="fas fa-chart-line"></i> TwitchCord Status
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-primary w-100" onclick="showInterface('streams')">
+                                            <i class="fas fa-stream"></i> Monitored Streams
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-success w-100" onclick="showInterface('analytics')">
+                                            <i class="fas fa-analytics"></i> Analytics
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-warning w-100" onclick="showInterface('attendance')">
+                                            <i class="fas fa-users"></i> Check Attendance
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-danger w-100" onclick="showInterface('raidstats')">
+                                            <i class="fas fa-trophy"></i> Raid Statistics
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-secondary w-100" onclick="showInterface('leaderboard')">
+                                            <i class="fas fa-medal"></i> Leaderboards
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-primary w-100" onclick="showInterface('poll')">
+                                            <i class="fas fa-poll"></i> Create Poll
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-info w-100" onclick="showInterface('streak')">
+                                            <i class="fas fa-fire"></i> Check Streak
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-success w-100" onclick="showInterface('timeslots')">
+                                            <i class="fas fa-calendar-alt"></i> View Train Schedule
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-primary w-100" onclick="showInterface('addslot')">
+                                            <i class="fas fa-plus-circle"></i> Add Train Slot
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-warning w-100" onclick="showInterface('activeslot')">
+                                            <i class="fas fa-clock"></i> Current Active Slot
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Stream Management Commands -->
+                            <div class="tab-pane fade" id="stream-commands" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-success w-100" onclick="showInterface('addstream')">
+                                            <i class="fas fa-plus-circle"></i> Add Stream
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-danger w-100" onclick="showInterface('removestream')">
+                                            <i class="fas fa-minus-circle"></i> Remove Stream
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-info w-100" onclick="showInterface('checkstream')">
+                                            <i class="fas fa-search"></i> Check Stream
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-primary w-100" onclick="showInterface('livestreams')">
+                                            <i class="fas fa-broadcast-tower"></i> Live Streams
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-secondary w-100" onclick="showInterface('timeslots')">
+                                            <i class="fas fa-calendar-alt"></i> Time Slots
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-success w-100" onclick="showInterface('addslot')">
+                                            <i class="fas fa-calendar-plus"></i> Add Time Slot
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-danger w-100" onclick="showInterface('removeslot')">
+                                            <i class="fas fa-calendar-minus"></i> Remove Time Slot
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-warning w-100" onclick="showInterface('activeslot')">
+                                            <i class="fas fa-calendar-check"></i> Active Slot
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Message Forwarding Commands -->
+                            <div class="tab-pane fade" id="forwarding-commands" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-success w-100" onclick="showInterface('addforward')">
+                                            <i class="fas fa-plus"></i> Add Forwarding
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-danger w-100" onclick="showInterface('removeforward')">
+                                            <i class="fas fa-trash"></i> Remove Forwarding
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-info w-100" onclick="showInterface('listforwards')">
+                                            <i class="fas fa-list"></i> List Forwards
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-warning w-100" onclick="showInterface('testforward')">
+                                            <i class="fas fa-vial"></i> Test Forward
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-primary w-100" onclick="showInterface('startforward')">
+                                            <i class="fas fa-play"></i> Start Forwarding
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-secondary w-100" onclick="showInterface('stopforward')">
+                                            <i class="fas fa-stop"></i> Stop Forwarding
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Database Commands -->
+                            <div class="tab-pane fade" id="database-commands" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-primary w-100" onclick="showInterface('dbstats')">
+                                            <i class="fas fa-chart-bar"></i> Database Stats
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-success w-100" onclick="showInterface('topusers')">
+                                            <i class="fas fa-crown"></i> Top Users
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-info w-100" onclick="showInterface('guildinfo')">
+                                            <i class="fas fa-building"></i> Server Info
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Support & Help Commands -->
+                            <div class="tab-pane fade" id="support-commands" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-primary w-100" onclick="showInterface('help')">
+                                            <i class="fas fa-question-circle"></i> Full Help Guide
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-info w-100" onclick="showInterface('support')">
+                                            <i class="fas fa-life-ring"></i> Interactive Support
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-success w-100" onclick="window.open('/donate', '_blank')">
+                                            <i class="fas fa-heart"></i> Donate
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-secondary w-100" onclick="showInterface('invite')">
+                                            <i class="fas fa-link"></i> Bot Invite
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-dark w-100" onclick="showInterface('botinvite')">
+                                            <i class="fas fa-user-plus"></i> Basic Invite
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Notification Setup Commands -->
+                            <div class="tab-pane fade" id="notification-commands" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-success w-100" onclick="executeCommand('notifstatus')">
+                                            <i class="fas fa-cog"></i> View Settings
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-primary w-100" onclick="executeCommand('setupnotifications')">
+                                            <i class="fas fa-bell-slash"></i> Setup Guide
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-warning w-100" onclick="showNotificationForm('channel')">
+                                            <i class="fas fa-hashtag"></i> Set Channel
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-info w-100" onclick="showNotificationForm('role')">
+                                            <i class="fas fa-at"></i> Set Ping Role
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-secondary w-100" onclick="executeCommand('toggleautoping')">
+                                            <i class="fas fa-toggle-on"></i> Toggle Auto Ping
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-dark w-100" onclick="showNotificationForm('timeout')">
+                                            <i class="fas fa-clock"></i> Set Timeout
+                                        </button>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <button class="btn btn-outline-purple w-100" onclick="showNotificationForm('schedule')" style="border-color: #9146ff; color: #9146ff;">
+                                            <i class="fas fa-calendar-clock"></i> Schedule Timing
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Notification Setup Forms -->
+                                <div class="row mt-4">
+                                    <div class="col-md-12">
+                                        <div id="notificationForms" style="display: none;">
+                                            <div class="row">
+                                                <!-- Set Channel Form -->
+                                                <div class="col-md-6 mb-3" id="channelFormCard" style="display: none;">
+                                                    <div class="card">
+                                                        <div class="card-header bg-primary text-white">
+                                                            <h6 class="mb-0"><i class="fas fa-hashtag"></i> Set Notification Channel</h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <form id="setChannelFormTab">
+                                                                <div class="mb-3">
+                                                                    <label for="notificationTypeTab" class="form-label">Notification Type</label>
+                                                                    <select class="form-select" id="notificationTypeTab" required>
+                                                                        <option value="">Select type...</option>
+                                                                        <option value="raid">Raid Train Notifications</option>
+                                                                        <option value="backup">Backup Streamer Alerts</option>
+                                                                        <option value="stream">Stream Status Updates</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label for="channelIdTab" class="form-label">Channel ID</label>
+                                                                    <input type="text" class="form-control" id="channelIdTab" placeholder="Enter channel ID" required>
+                                                                    <small class="form-text text-muted">Right-click channel → Copy ID</small>
+                                                                </div>
+                                                                <div class="text-end">
+                                                                    <button type="button" class="btn btn-secondary me-2" onclick="hideNotificationForms()">Cancel</button>
+                                                                    <button type="submit" class="btn btn-primary">
+                                                                        <i class="fas fa-save"></i> Set Channel
+                                                                    </button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Set Role Form -->
+                                                <div class="col-md-6 mb-3" id="roleFormCard" style="display: none;">
+                                                    <div class="card">
+                                                        <div class="card-header bg-warning text-dark">
+                                                            <h6 class="mb-0"><i class="fas fa-at"></i> Set Ping Role</h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <form id="setPingRoleFormTab">
+                                                                <div class="mb-3">
+                                                                    <label for="pingNotificationTypeTab" class="form-label">Notification Type</label>
+                                                                    <select class="form-select" id="pingNotificationTypeTab" required>
+                                                                        <option value="">Select type...</option>
+                                                                        <option value="raid">Raid Train Pings</option>
+                                                                        <option value="backup">Backup Streamer Pings</option>
+                                                                        <option value="stream">Stream Update Pings</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label for="roleIdTab" class="form-label">Role ID</label>
+                                                                    <input type="text" class="form-control" id="roleIdTab" placeholder="Enter role ID" required>
+                                                                    <small class="form-text text-muted">Right-click role → Copy ID</small>
+                                                                </div>
+                                                                <div class="text-end">
+                                                                    <button type="button" class="btn btn-secondary me-2" onclick="hideNotificationForms()">Cancel</button>
+                                                                    <button type="submit" class="btn btn-warning">
+                                                                        <i class="fas fa-save"></i> Set Role
+                                                                    </button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Set Timeout Form -->
+                                                <div class="col-md-6 mb-3" id="timeoutFormCard" style="display: none;">
+                                                    <div class="card">
+                                                        <div class="card-header bg-dark text-white">
+                                                            <h6 class="mb-0"><i class="fas fa-clock"></i> Set Ping Timeout</h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <form id="setPingTimeoutFormTab">
+                                                                <div class="mb-3">
+                                                                    <label for="timeoutMinutesTab" class="form-label">Timeout (Minutes)</label>
+                                                                    <input type="number" class="form-control" id="timeoutMinutesTab" min="1" max="60" placeholder="15" required>
+                                                                    <small class="form-text text-muted">Minutes before backup is pinged (1-60)</small>
+                                                                </div>
+                                                                <div class="text-end">
+                                                                    <button type="button" class="btn btn-secondary me-2" onclick="hideNotificationForms()">Cancel</button>
+                                                                    <button type="submit" class="btn btn-dark">
+                                                                        <i class="fas fa-save"></i> Set Timeout
+                                                                    </button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Set Schedule Notification Form -->
+                                                <div class="col-md-6 mb-3" id="scheduleFormCard" style="display: none;">
+                                                    <div class="card">
+                                                        <div class="card-header text-white" style="background-color: #9146ff;">
+                                                            <h6 class="mb-0"><i class="fas fa-calendar-clock"></i> Set Schedule Notification Timing</h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <form id="setScheduleNotifFormTab">
+                                                                <div class="mb-3">
+                                                                    <label for="scheduleIdTab" class="form-label">Schedule ID</label>
+                                                                    <input type="number" class="form-control" id="scheduleIdTab" min="1" placeholder="1" required>
+                                                                    <small class="form-text text-muted">ID from the train schedule list</small>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label for="notifyMinutesTab" class="form-label">Notify Before (Minutes)</label>
+                                                                    <input type="number" class="form-control" id="notifyMinutesTab" min="1" max="120" placeholder="15" required>
+                                                                    <small class="form-text text-muted">Minutes before train starts to send notification (1-120)</small>
+                                                                </div>
+                                                                <div class="text-end">
+                                                                    <button type="button" class="btn btn-secondary me-2" onclick="hideNotificationForms()">Cancel</button>
+                                                                    <button type="submit" class="btn" style="background-color: #9146ff; color: white;">
+                                                                        <i class="fas fa-save"></i> Set Timing
+                                                                    </button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Notification Setup Guide -->
+                                <div class="alert alert-info mt-3">
+                                    <h6><i class="fas fa-info-circle"></i> Quick Setup Guide</h6>
+                                    <ol>
+                                        <li>First, check your current settings with <strong>View Settings</strong></li>
+                                        <li>Set notification channels for each type (raid, backup, stream)</li>
+                                        <li>Configure which roles to ping for notifications</li>
+                                        <li>Toggle auto ping system and set timeout preferences</li>
+                                    </ol>
+                                    <p class="mb-0"><strong>Note:</strong> You need "Manage Server" permissions to configure notifications.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Command Interface -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <h3 id="dynamicSectionTitle"><i class="fas fa-share-alt"></i> Message Forwarding Management</h3>
+            </div>
+        </div>
+        
+        <!-- Dynamic Command Interface Content -->
+        <div class="row">
+            <div class="col-md-12">
+                <div id="dynamicContent">
+                    <!-- Default: Message Forwarding Management -->
+                    <div id="forwardingInterface" class="dynamic-interface">
+                        <!-- Add New Forwarding Configuration -->
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-plus-circle"></i> Add New Forwarding Configuration
+                                    <button class="btn btn-sm btn-primary float-end" id="toggleAddForm" onclick="toggleAddForm()">
+                                        <i class="fas fa-plus"></i> Add Configuration
+                                    </button>
+                                </h5>
+                            </div>
+                            <div class="card-body" id="addConfigForm" style="display: none;">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i>
+                                    Create message forwarding between channels. Messages from the source channel will be automatically forwarded to the target channel.
+                                </div>
+                                <form id="forwardingForm">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label for="sourceChannel" class="form-label">Source Channel</label>
+                                            <select class="form-select" id="sourceChannel" required>
+                                                <option value="">Select source channel...</option>
+                                            </select>
+                                            <small class="form-text text-muted">Channel where messages originate</small>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="targetChannel" class="form-label">Target Channel</label>
+                                            <select class="form-select" id="targetChannel" required>
+                                                <option value="">Select target channel...</option>
+                                            </select>
+                                            <small class="form-text text-muted">Channel where messages will be forwarded</small>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3">
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="isActive" checked>
+                                                <label class="form-check-label" for="isActive">
+                                                    Enable immediately
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="text-end">
+                                                <button type="button" class="btn btn-secondary me-2" onclick="toggleAddForm()">Cancel</button>
+                                                <button type="submit" class="btn btn-primary">
+                                                    <i class="fas fa-save"></i> Create Configuration
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <!-- Active Forwarding Configurations -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-list"></i> Active Forwarding Configurations
+                                    <button class="btn btn-sm btn-outline-primary float-end" onclick="refreshConfigs()">
+                                        <i class="fas fa-sync-alt"></i> Refresh
+                                    </button>
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="configsContainer">
+                                    {% if forwarding_configs %}
+                                    <div class="table-responsive">
+                                        <table class="table table-striped" id="configsTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>Source</th>
+                                                    <th>Target</th>
+                                                    <th>Status</th>
+                                                    <th>Created</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for config in forwarding_configs %}
+                                                <tr id="config-row-{{ config.id }}">
+                                                    <td>
+                                                        <strong>{{ config.source_guild_name }}</strong><br>
+                                                        <small class="text-muted">#{{ config.source_channel_name }}</small>
+                                                    </td>
+                                                    <td>
+                                                        <strong>{{ config.target_guild_name }}</strong><br>
+                                                        <small class="text-muted">#{{ config.target_channel_name }}</small>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge {% if config.is_active %}bg-success{% else %}bg-secondary{% endif %}" 
+                                                              id="status-badge-{{ config.id }}">
+                                                            {% if config.is_active %}Active{% else %}Inactive{% endif %}
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ config.created_at }}</td>
+                                                    <td>
+                                                        <button class="btn btn-sm btn-outline-primary me-1" 
+                                                                onclick="toggleConfig({{ config.id }}, {% if config.is_active %}false{% else %}true{% endif %})"
+                                                                id="toggle-btn-{{ config.id }}">
+                                                            <i class="fas {% if config.is_active %}fa-pause{% else %}fa-play{% endif %}"></i>
+                                                            {% if config.is_active %}Disable{% else %}Enable{% endif %}
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-danger" 
+                                                                onclick="deleteConfig({{ config.id }})"
+                                                                title="Delete Configuration">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {% else %}
+                                    <div class="text-center py-4">
+                                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted">No forwarding configurations found.</p>
+                                        <button class="btn btn-primary" onclick="toggleAddForm()">
+                                            <i class="fas fa-plus"></i> Create Your First Configuration
+                                        </button>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Stream Management Interface -->
+                    <div id="streamInterface" class="dynamic-interface" style="display: none;">
+                        <!-- Add Stream Form -->
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-plus-circle"></i> Add Stream to Monitoring
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="addStreamForm">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label for="streamUsername" class="form-label">Twitch Username</label>
+                                            <input type="text" class="form-control" id="streamUsername" placeholder="Enter Twitch username" required>
+                                            <small class="form-text text-muted">Username without the @ symbol</small>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="streamCategory" class="form-label">Stream Category</label>
+                                            <select class="form-select" id="streamCategory">
+                                                <option value="gaming">Gaming</option>
+                                                <option value="creative">Creative</option>
+                                                <option value="chatting">Just Chatting</option>
+                                                <option value="other">Other</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3">
+                                        <div class="col-md-12">
+                                            <div class="text-end">
+                                                <button type="button" class="btn btn-secondary me-2" onclick="showInterface('default')">Cancel</button>
+                                                <button type="submit" class="btn btn-success">
+                                                    <i class="fas fa-plus"></i> Add Stream
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <!-- Remove Stream Form -->
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-minus-circle"></i> Remove Stream from Monitoring
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="removeStreamForm">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <label for="removeStreamUsername" class="form-label">Twitch Username to Remove</label>
+                                            <input type="text" class="form-control" id="removeStreamUsername" placeholder="Enter Twitch username" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">&nbsp;</label>
+                                            <button type="submit" class="btn btn-danger w-100">
+                                                <i class="fas fa-minus"></i> Remove Stream
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <!-- Stream Check Form -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-search"></i> Check Stream Status
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="checkStreamForm">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <label for="checkStreamUsername" class="form-label">Twitch Username</label>
+                                            <input type="text" class="form-control" id="checkStreamUsername" placeholder="Enter Twitch username" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">&nbsp;</label>
+                                            <button type="submit" class="btn btn-info w-100">
+                                                <i class="fas fa-search"></i> Check Status
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- TwitchCord Interface -->
+                    <div id="twitchcordInterface" class="dynamic-interface" style="display: none;">
+                        <!-- TwitchCord Quick Actions -->
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <button class="btn btn-primary w-100" onclick="executeCommand('leaderboard')">
+                                    <i class="fas fa-medal"></i> View Leaderboard
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-danger w-100" onclick="executeCommand('raidstats')">
+                                    <i class="fas fa-trophy"></i> Raid Statistics
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-success w-100" onclick="executeCommand('analytics')">
+                                    <i class="fas fa-chart-line"></i> Analytics
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-info w-100" onclick="executeCommand('streams')">
+                                    <i class="fas fa-stream"></i> Monitored Streams
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Attendance Check Form -->
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-users"></i> Check User Attendance
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="attendanceForm">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <label for="attendanceUsername" class="form-label">Username</label>
+                                            <input type="text" class="form-control" id="attendanceUsername" placeholder="Enter username or Twitch username" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">&nbsp;</label>
+                                            <button type="submit" class="btn btn-warning w-100">
+                                                <i class="fas fa-users"></i> Check Attendance
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <!-- Streak Check Form -->
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-fire"></i> Check Attendance Streak
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="streakForm">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <label for="streakUsername" class="form-label">Username</label>
+                                            <input type="text" class="form-control" id="streakUsername" placeholder="Enter username or Twitch username" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">&nbsp;</label>
+                                            <button type="submit" class="btn btn-info w-100">
+                                                <i class="fas fa-fire"></i> Check Streak
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <!-- Create Poll Form -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-poll"></i> Create Raid Train Poll
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="pollForm">
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <label for="pollQuestion" class="form-label">Poll Question</label>
+                                            <input type="text" class="form-control" id="pollQuestion" placeholder="Enter poll question" required>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3">
+                                        <div class="col-md-6">
+                                            <label for="pollOption1" class="form-label">Option 1</label>
+                                            <input type="text" class="form-control" id="pollOption1" placeholder="First option" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="pollOption2" class="form-label">Option 2</label>
+                                            <input type="text" class="form-control" id="pollOption2" placeholder="Second option" required>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3">
+                                        <div class="col-md-12">
+                                            <div class="text-end">
+                                                <button type="button" class="btn btn-secondary me-2" onclick="showInterface('default')">Cancel</button>
+                                                <button type="submit" class="btn btn-primary">
+                                                    <i class="fas fa-poll"></i> Create Poll
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Basic Information Interface -->
+                    <div id="basicInterface" class="dynamic-interface" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-wifi"></i> Bot Performance
+                                        </h5>
+                                    </div>
+                                    <div class="card-body text-center">
+                                        <button class="btn btn-primary mb-2 w-100" onclick="executeCommand('ping')">
+                                            <i class="fas fa-wifi"></i> Check Latency
+                                        </button>
+                                        <button class="btn btn-secondary mb-2 w-100" onclick="executeCommand('uptime')">
+                                            <i class="fas fa-clock"></i> Check Uptime
+                                        </button>
+                                        <button class="btn btn-warning w-100" onclick="executeCommand('status')">
+                                            <i class="fas fa-heartbeat"></i> Forwarding Status
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-server"></i> Server Information
+                                        </h5>
+                                    </div>
+                                    <div class="card-body text-center">
+                                        <button class="btn btn-info mb-2 w-100" onclick="executeCommand('info')">
+                                            <i class="fas fa-info-circle"></i> Bot Statistics
+                                        </button>
+                                        <button class="btn btn-success mb-2 w-100" onclick="executeCommand('servers')">
+                                            <i class="fas fa-server"></i> Connected Servers
+                                        </button>
+                                        <button class="btn btn-dark w-100" onclick="executeCommand('updates')">
+                                            <i class="fas fa-history"></i> Recent Updates
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Database Interface -->
+                    <div id="databaseInterface" class="dynamic-interface" style="display: none;">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-database"></i> Database Operations
+                                </h5>
+                            </div>
+                            <div class="card-body text-center">
+                                <p class="text-muted mb-4">View database statistics, top users, and server information. All data is retrieved in real-time.</p>
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <button class="btn btn-primary w-100" onclick="executeCommand('dbstats')">
+                                            <i class="fas fa-chart-bar"></i> Database Stats
+                                        </button>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <button class="btn btn-success w-100" onclick="executeCommand('topusers')">
+                                            <i class="fas fa-crown"></i> Top Users
+                                        </button>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <button class="btn btn-info w-100" onclick="executeCommand('guildinfo')">
+                                            <i class="fas fa-building"></i> Server Info
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Support Interface -->
+                    <div id="supportInterface" class="dynamic-interface" style="display: none;">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-life-ring"></i> Support & Help
+                                </h5>
+                            </div>
+                            <div class="card-body text-center">
+                                <p class="text-muted mb-4">Get help with bot commands, view comprehensive guides, and access bot invite links.</p>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <button class="btn btn-primary w-100" onclick="executeCommand('help')">
+                                            <i class="fas fa-question-circle"></i> Full Help Guide
+                                        </button>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <button class="btn btn-info w-100" onclick="executeCommand('support')">
+                                            <i class="fas fa-life-ring"></i> Interactive Support
+                                        </button>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <button class="btn btn-secondary w-100" onclick="executeCommand('invite')">
+                                            <i class="fas fa-link"></i> Bot Invite
+                                        </button>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <button class="btn btn-dark w-100" onclick="executeCommand('botinvite')">
+                                            <i class="fas fa-user-plus"></i> Basic Invite
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Notification Setup Interface -->
+                    <div id="notificationInterface" class="dynamic-interface" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-hashtag"></i> Set Notification Channel
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <form id="setChannelForm">
+                                            <div class="mb-3">
+                                                <label for="notificationType" class="form-label">Notification Type</label>
+                                                <select class="form-select" id="notificationType" required>
+                                                    <option value="">Select type...</option>
+                                                    <option value="raid">Raid Train Notifications</option>
+                                                    <option value="backup">Backup Streamer Alerts</option>
+                                                    <option value="stream">Stream Status Updates</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="channelId" class="form-label">Channel ID</label>
+                                                <input type="text" class="form-control" id="channelId" placeholder="Enter channel ID (e.g., 123456789)" required>
+                                                <small class="form-text text-muted">Right-click channel → Copy ID</small>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary w-100">
+                                                <i class="fas fa-save"></i> Set Channel
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-at"></i> Set Ping Role
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <form id="setPingRoleForm">
+                                            <div class="mb-3">
+                                                <label for="pingNotificationType" class="form-label">Notification Type</label>
+                                                <select class="form-select" id="pingNotificationType" required>
+                                                    <option value="">Select type...</option>
+                                                    <option value="raid">Raid Train Pings</option>
+                                                    <option value="backup">Backup Streamer Pings</option>
+                                                    <option value="stream">Stream Update Pings</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="roleId" class="form-label">Role ID</label>
+                                                <input type="text" class="form-control" id="roleId" placeholder="Enter role ID (e.g., 987654321)" required>
+                                                <small class="form-text text-muted">Right-click role → Copy ID</small>
+                                            </div>
+                                            <button type="submit" class="btn btn-warning w-100">
+                                                <i class="fas fa-save"></i> Set Role
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-clock"></i> Set Ping Timeout
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <form id="setPingTimeoutForm">
+                                            <div class="mb-3">
+                                                <label for="timeoutMinutes" class="form-label">Timeout (Minutes)</label>
+                                                <input type="number" class="form-control" id="timeoutMinutes" min="1" max="60" placeholder="15" required>
+                                                <small class="form-text text-muted">Minutes before backup is pinged (1-60)</small>
+                                            </div>
+                                            <button type="submit" class="btn btn-dark w-100">
+                                                <i class="fas fa-save"></i> Set Timeout
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-cog"></i> Current Settings
+                                        </h5>
+                                    </div>
+                                    <div class="card-body text-center">
+                                        <button class="btn btn-success w-100" onclick="executeCommand('notifstatus')">
+                                            <i class="fas fa-eye"></i> View Current Settings
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Support & Donation Panel -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-heart"></i> Support Train Bot Development
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-dollar-sign text-success"></i> Monthly Hosting Costs</h6>
+                                        <ul class="list-unstyled">
+                                            <li><strong>$20/month</strong> for Replit Reserved VM</li>
+                                            <li><i class="fas fa-check text-success"></i> 24/7 uptime and reliability</li>
+                                            <li><i class="fas fa-check text-success"></i> Database hosting included</li>
+                                            <li><i class="fas fa-check text-success"></i> Keeps the bot free for everyone!</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-gift text-warning"></i> Donation Options</h6>
+                                        <div class="btn-group-vertical w-100" role="group">
+                                            <a href="https://forwarding-stoneregan9.replit.app/donate" class="btn btn-outline-success btn-sm mb-1" target="_blank">
+                                                <i class="fas fa-coffee"></i> $3 - Coffee Fund
+                                            </a>
+                                            <a href="https://forwarding-stoneregan9.replit.app/donate" class="btn btn-outline-success btn-sm mb-1" target="_blank">
+                                                <i class="fas fa-thumbs-up"></i> $5 - Popular Choice
+                                            </a>
+                                            <a href="https://forwarding-stoneregan9.replit.app/donate" class="btn btn-outline-success btn-sm mb-1" target="_blank">
+                                                <i class="fas fa-star"></i> $10 - Generous Support
+                                            </a>
+                                            <a href="https://forwarding-stoneregan9.replit.app/donate" class="btn btn-success btn-sm" target="_blank">
+                                                <i class="fas fa-calendar"></i> $20 - Cover One Month!
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <div class="card bg-light h-100">
+                                    <div class="card-body text-center">
+                                        <h6><i class="fas fa-shield-alt text-primary"></i> Secure Donation</h6>
+                                        <p class="small text-muted mb-3">
+                                            <i class="fas fa-lock"></i> SSL Encrypted<br>
+                                            <i class="fas fa-credit-card"></i> Stripe Checkout<br>
+                                            <i class="fas fa-user-shield"></i> No account required
+                                        </p>
+                                        <a href="https://forwarding-stoneregan9.replit.app/donate" 
+                                           class="btn btn-success btn-lg w-100" 
+                                           target="_blank">
+                                            <i class="fas fa-external-link-alt"></i> Open Donation Page
+                                        </a>
+                                        <p class="small text-muted mt-2">
+                                            Custom amounts available on the donation page
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="alert alert-info mb-0">
+                                    <i class="fas fa-info-circle"></i>
+                                    <strong>Having trouble with the donation link?</strong> 
+                                    If you see a "deployed" page, try copying and pasting the URL directly in your browser, 
+                                    or refresh the page a few times. You can also contact the developer for alternative payment methods.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bot Information -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-info-circle"></i> Bot Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row">
+                            <dt class="col-sm-4">Status:</dt>
+                            <dd class="col-sm-8">
+                                <span class="{% if bot_status.online %}status-online{% else %}status-offline{% endif %}">
+                                    {{ bot_status.status }}
+                                </span>
+                            </dd>
+                            
+                            <dt class="col-sm-4">Bot Name:</dt>
+                            <dd class="col-sm-8">Jordies Train</dd>
+                            
+                            <dt class="col-sm-4">Bot ID:</dt>
+                            <dd class="col-sm-8">1399578995342970910</dd>
+                            
+                            {% if bot_status.online %}
+                            <dt class="col-sm-4">Uptime:</dt>
+                            <dd class="col-sm-8">
+                                {{ (bot_status.uptime_seconds // 86400) }}d 
+                                {{ ((bot_status.uptime_seconds % 86400) // 3600) }}h 
+                                {{ ((bot_status.uptime_seconds % 3600) // 60) }}m
+                            </dd>
+                            {% endif %}
+                        </dl>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-cogs"></i> System Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row">
+                            <dt class="col-sm-5">Dashboard:</dt>
+                            <dd class="col-sm-7"><span class="status-online">Online</span></dd>
+                            
+                            <dt class="col-sm-5">Database:</dt>
+                            <dd class="col-sm-7"><span class="status-online">Connected</span></dd>
+                            
+                            <dt class="col-sm-5">Bot API:</dt>
+                            <dd class="col-sm-7">
+                                <span class="{% if bot_status.online %}status-online{% else %}status-offline{% endif %}">
+                                    {{ 'Connected' if bot_status.online else 'Disconnected' }}
+                                </span>
+                            </dd>
+                            
+                            <dt class="col-sm-5">Last Update:</dt>
+                            <dd class="col-sm-7">{{ current_time }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="container">
+            <p>&copy; 2025 Train Bot Dashboard | Last updated: {{ current_time }}</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let autoRefreshTimeout;
+        let channels = [];
+        
+        // Load train schedules
+        async function loadTrainSchedules() {
+            try {
+                const response = await fetch('/api/train/schedules');
+                const data = await response.json();
+                
+                const container = document.getElementById('trainSchedules');
+                const countBadge = document.getElementById('scheduleCount');
+                const scheduleSelect = document.getElementById('scheduleSelect');
+                
+                // Update count badge
+                countBadge.textContent = `${data.count} Active`;
+                
+                // Clear schedule select
+                scheduleSelect.innerHTML = '<option value="">Choose a schedule...</option>';
+                
+                if (data.schedules && data.schedules.length > 0) {
+                    let html = '<div class="table-responsive"><table class="table table-striped">';
+                    html += '<thead><tr><th>Name</th><th>Day</th><th>Time</th><th>Duration</th><th>Participants</th><th>Status</th></tr></thead><tbody>';
+                    
+                    data.schedules.forEach(schedule => {
+                        // Add to select dropdown
+                        scheduleSelect.innerHTML += `<option value="${schedule.id}">${schedule.name} (${schedule.day_name})</option>`;
+                        
+                        // Add to table
+                        html += `<tr>
+                            <td><strong>${schedule.name}</strong></td>
+                            <td>${schedule.day_name}</td>
+                            <td>${schedule.time_display}</td>
+                            <td>${schedule.duration_minutes} min</td>
+                            <td>
+                                <span class="badge bg-primary">${schedule.participant_count}</span>
+                                ${schedule.max_participants ? `/ ${schedule.max_participants}` : ''}
+                            </td>
+                            <td>
+                                <span class="badge ${schedule.is_active ? 'bg-success' : 'bg-secondary'}">
+                                    ${schedule.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                            </td>
+                        </tr>`;
+                    });
+                    
+                    html += '</tbody></table></div>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div class="alert alert-info"><i class="fas fa-info-circle"></i> No active train schedules found. Use Discord commands to create schedules.</div>';
+                }
+            } catch (error) {
+                console.error('Error loading train schedules:', error);
+                document.getElementById('trainSchedules').innerHTML = 
+                    '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error loading train schedules</div>';
+            }
+        }
+        
+        // Load participants for selected schedule
+        async function loadParticipants() {
+            const scheduleId = document.getElementById('scheduleSelect').value;
+            const container = document.getElementById('participantsList');
+            
+            if (!scheduleId) {
+                container.innerHTML = '<p class="text-muted">Select a schedule to view participants</p>';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/train/participants/${scheduleId}`);
+                const data = await response.json();
+                
+                if (data.participants && data.participants.length > 0) {
+                    let html = '<div class="mb-2"><strong>Participants:</strong></div>';
+                    data.participants.forEach(participant => {
+                        const hostBadge = participant.is_host ? '<span class="badge bg-warning ms-1">Host</span>' : '';
+                        const twitchInfo = participant.twitch_username ? ` (${participant.twitch_username})` : '';
+                        
+                        html += `<div class="d-flex justify-content-between align-items-center border-bottom py-1">
+                            <div>
+                                <small><strong>${participant.display_name || participant.username}</strong>${twitchInfo}${hostBadge}</small>
+                            </div>
+                        </div>`;
+                    });
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div class="alert alert-info"><i class="fas fa-info-circle"></i> No participants signed up yet</div>';
+                }
+            } catch (error) {
+                console.error('Error loading participants:', error);
+                container.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error loading participants</div>';
+            }
+        }
+        
+        // Load forwarding configurations
+        async function loadForwardingConfigs() {
+            try {
+                const response = await fetch('/api/forwarding');
+                const data = await response.json();
+                
+                const container = document.getElementById('forwardingConfigs');
+                const countBadge = document.getElementById('forwardingCount');
+                
+                // Update count badge
+                countBadge.textContent = `${data.active_count} Active`;
+                
+                if (data.configs && data.configs.length > 0) {
+                    let html = '<div class="table-responsive"><table class="table table-striped">';
+                    html += '<thead><tr><th>Source</th><th>Target</th><th>Status</th><th>Created</th></tr></thead><tbody>';
+                    
+                    data.configs.forEach(config => {
+                        html += `<tr>
+                            <td>Guild: ${config.source_guild_id}<br><small>Channel: ${config.source_channel_id}</small></td>
+                            <td>Channel: ${config.target_channel_id}</td>
+                            <td>
+                                <span class="badge ${config.is_active ? 'bg-success' : 'bg-secondary'}">
+                                    ${config.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                            </td>
+                            <td><small>${config.created_at || 'Unknown'}</small></td>
+                        </tr>`;
+                    });
+                    
+                    html += '</tbody></table></div>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div class="alert alert-info"><i class="fas fa-info-circle"></i> No forwarding configurations found. Use Discord commands to set up forwarding.</div>';
+                }
+            } catch (error) {
+                console.error('Error loading forwarding configs:', error);
+                document.getElementById('forwardingConfigs').innerHTML = 
+                    '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error loading forwarding configurations</div>';
+            }
+        }
+
+        // Load channels on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadChannels();
+            loadTrainSchedules();
+            loadForwardingConfigs();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(loadChannels, 30000);
+            setInterval(loadTrainSchedules, 30000);
+            setInterval(loadForwardingConfigs, 30000);
+            
+            // Set up form submission handlers
+            document.getElementById('forwardingForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                createForwardingConfig();
+            });
+            
+            // Stream management form handlers
+            document.getElementById('addStreamForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                addStreamToBot();
+            });
+            
+            document.getElementById('removeStreamForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                removeStreamFromBot();
+            });
+            
+            document.getElementById('checkStreamForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                checkStreamStatus();
+            });
+            
+            // TwitchCord form handlers
+            document.getElementById('attendanceForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                checkUserAttendance();
+            });
+            
+            document.getElementById('streakForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                checkUserStreak();
+            });
+            
+            document.getElementById('pollForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                createRaidPoll();
+            });
+            
+            // Notification setup form handlers
+            document.getElementById('setChannelForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                setNotificationChannel();
+            });
+            
+            document.getElementById('setPingRoleForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                setPingRole();
+            });
+            
+            document.getElementById('setPingTimeoutForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                setPingTimeout();
+            });
+            
+            // Notification tab form handlers
+            document.getElementById('setChannelFormTab').addEventListener('submit', function(e) {
+                e.preventDefault();
+                setNotificationChannelTab();
+            });
+            
+            document.getElementById('setPingRoleFormTab').addEventListener('submit', function(e) {
+                e.preventDefault();
+                setPingRoleTab();
+            });
+            
+            document.getElementById('setPingTimeoutFormTab').addEventListener('submit', function(e) {
+                e.preventDefault();
+                setPingTimeoutTab();
+            });
+            
+            document.getElementById('setScheduleNotifFormTab').addEventListener('submit', function(e) {
+                e.preventDefault();
+                setScheduleNotifTimingTab();
+            });
+        });
+        
+        // Toggle add form visibility
+        function toggleAddForm() {
+            const form = document.getElementById('addConfigForm');
+            const button = document.getElementById('toggleAddForm');
+            
+            if (form.style.display === 'none') {
+                form.style.display = 'block';
+                button.innerHTML = '<i class="fas fa-times"></i> Cancel';
+                button.classList.remove('btn-primary');
+                button.classList.add('btn-secondary');
+            } else {
+                form.style.display = 'none';
+                button.innerHTML = '<i class="fas fa-plus"></i> Add Configuration';
+                button.classList.remove('btn-secondary');
+                button.classList.add('btn-primary');
+                // Reset form
+                document.getElementById('forwardingForm').reset();
+            }
+        }
+        
+        // Load available channels
+        async function loadChannels() {
+            try {
+                const response = await fetch('/api/channels');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    channels = data.channels;
+                    populateChannelDropdowns();
+                }
+            } catch (error) {
+                console.error('Error loading channels:', error);
+                showAlert('Error loading channels. Please refresh the page.', 'danger');
+            }
+        }
+        
+        // Populate channel dropdowns
+        function populateChannelDropdowns() {
+            const sourceSelect = document.getElementById('sourceChannel');
+            const targetSelect = document.getElementById('targetChannel');
+            
+            // Clear existing options (except placeholder)
+            sourceSelect.innerHTML = '<option value="">Select source channel...</option>';
+            targetSelect.innerHTML = '<option value="">Select target channel...</option>';
+            
+            // Sort channels by guild name then channel name
+            channels.sort((a, b) => {
+                if (a.guild_name !== b.guild_name) {
+                    return a.guild_name.localeCompare(b.guild_name);
+                }
+                return a.name.localeCompare(b.name);
+            });
+            
+            // Add options
+            channels.forEach(channel => {
+                const option = new Option(channel.display_name, channel.id);
+                option.dataset.guildId = channel.guild_id;
+                
+                sourceSelect.add(option.cloneNode(true));
+                targetSelect.add(option.cloneNode(true));
+            });
+        }
+        
+        // Create new forwarding configuration
+        async function createForwardingConfig() {
+            const sourceChannelId = document.getElementById('sourceChannel').value;
+            const targetChannelId = document.getElementById('targetChannel').value;
+            const isActive = document.getElementById('isActive').checked;
+            
+            if (!sourceChannelId || !targetChannelId) {
+                showAlert('Please select both source and target channels.', 'warning');
+                return;
+            }
+            
+            if (sourceChannelId === targetChannelId) {
+                showAlert('Source and target channels cannot be the same.', 'warning');
+                return;
+            }
+            
+            // Find guild IDs for the channels
+            const sourceChannel = channels.find(c => c.id == sourceChannelId);
+            const targetChannel = channels.find(c => c.id == targetChannelId);
+            
+            const configData = {
+                source_guild_id: sourceChannel.guild_id,
+                source_channel_id: sourceChannelId,
+                target_channel_id: targetChannelId,
+                is_active: isActive,
+                created_by: 'dashboard'
+            };
+            
+            try {
+                const response = await fetch('/api/forwarding', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(configData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showAlert('Forwarding configuration created successfully!', 'success');
+                    toggleAddForm();
+                    setTimeout(() => location.reload(), 1500); // Refresh to show new config
+                } else {
+                    showAlert(data.message || 'Error creating configuration.', 'danger');
+                }
+            } catch (error) {
+                console.error('Error creating config:', error);
+                showAlert('Error creating configuration. Please try again.', 'danger');
+            }
+        }
+        
+        // Toggle configuration active/inactive
+        async function toggleConfig(configId, newStatus) {
+            try {
+                const response = await fetch(`/api/forwarding/${configId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        is_active: newStatus
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // Update UI immediately
+                    const badge = document.getElementById(`status-badge-${configId}`);
+                    const button = document.getElementById(`toggle-btn-${configId}`);
+                    
+                    if (newStatus) {
+                        badge.className = 'badge bg-success';
+                        badge.textContent = 'Active';
+                        button.innerHTML = '<i class="fas fa-pause"></i> Disable';
+                        button.onclick = () => toggleConfig(configId, false);
+                    } else {
+                        badge.className = 'badge bg-secondary';
+                        badge.textContent = 'Inactive';
+                        button.innerHTML = '<i class="fas fa-play"></i> Enable';
+                        button.onclick = () => toggleConfig(configId, true);
+                    }
+                    
+                    showAlert(`Configuration ${newStatus ? 'enabled' : 'disabled'} successfully!`, 'success');
+                } else {
+                    showAlert(data.message || 'Error updating configuration.', 'danger');
+                }
+            } catch (error) {
+                console.error('Error toggling config:', error);
+                showAlert('Error updating configuration. Please try again.', 'danger');
+            }
+        }
+        
+        // Delete configuration
+        async function deleteConfig(configId) {
+            if (!confirm('Are you sure you want to delete this forwarding configuration? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/forwarding/${configId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // Remove row from table
+                    const row = document.getElementById(`config-row-${configId}`);
+                    if (row) {
+                        row.remove();
+                    }
+                    
+                    showAlert('Configuration deleted successfully!', 'success');
+                    
+                    // If no more rows, show empty state
+                    const tableBody = document.querySelector('#configsTable tbody');
+                    if (tableBody && tableBody.children.length === 0) {
+                        setTimeout(() => location.reload(), 1000);
+                    }
+                } else {
+                    showAlert(data.message || 'Error deleting configuration.', 'danger');
+                }
+            } catch (error) {
+                console.error('Error deleting config:', error);
+                showAlert('Error deleting configuration. Please try again.', 'danger');
+            }
+        }
+        
+        // Stream Management Functions
+        async function addStreamToBot() {
+            const username = document.getElementById('streamUsername').value.trim();
+            const category = document.getElementById('streamCategory').value;
+            
+            if (!username) {
+                showAlert('Please enter a Twitch username.', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/commands/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: 'addstream',
+                        args: [username, category]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`Stream "${username}" added to monitoring successfully!`, 'success');
+                    document.getElementById('addStreamForm').reset();
+                } else {
+                    showAlert(`Error adding stream: ${data.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error adding stream:', error);
+                showAlert('Error adding stream. Please try again.', 'danger');
+            }
+        }
+        
+        async function removeStreamFromBot() {
+            const username = document.getElementById('removeStreamUsername').value.trim();
+            
+            if (!username) {
+                showAlert('Please enter a Twitch username.', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/commands/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: 'removestream',
+                        args: [username]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`Stream "${username}" removed from monitoring successfully!`, 'success');
+                    document.getElementById('removeStreamForm').reset();
+                } else {
+                    showAlert(`Error removing stream: ${data.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error removing stream:', error);
+                showAlert('Error removing stream. Please try again.', 'danger');
+            }
+        }
+        
+        async function checkStreamStatus() {
+            const username = document.getElementById('checkStreamUsername').value.trim();
+            
+            if (!username) {
+                showAlert('Please enter a Twitch username.', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/commands/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: 'checkstream',
+                        args: [username]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`Stream status checked for "${username}"!`, 'success');
+                    // Show result in command output area
+                    executeCommand('checkstream');
+                } else {
+                    showAlert(`Error checking stream: ${data.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error checking stream:', error);
+                showAlert('Error checking stream. Please try again.', 'danger');
+            }
+        }
+        
+        // TwitchCord Functions
+        async function checkUserAttendance() {
+            const username = document.getElementById('attendanceUsername').value.trim();
+            
+            if (!username) {
+                showAlert('Please enter a username.', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/commands/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: 'attendance',
+                        args: [username]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`Attendance checked for "${username}"!`, 'success');
+                } else {
+                    showAlert(`Error checking attendance: ${data.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error checking attendance:', error);
+                showAlert('Error checking attendance. Please try again.', 'danger');
+            }
+        }
+        
+        async function checkUserStreak() {
+            const username = document.getElementById('streakUsername').value.trim();
+            
+            if (!username) {
+                showAlert('Please enter a username.', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/commands/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: 'streak',
+                        args: [username]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`Streak checked for "${username}"!`, 'success');
+                } else {
+                    showAlert(`Error checking streak: ${data.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error checking streak:', error);
+                showAlert('Error checking streak. Please try again.', 'danger');
+            }
+        }
+        
+        async function createRaidPoll() {
+            const question = document.getElementById('pollQuestion').value.trim();
+            const option1 = document.getElementById('pollOption1').value.trim();
+            const option2 = document.getElementById('pollOption2').value.trim();
+            
+            if (!question || !option1 || !option2) {
+                showAlert('Please fill in all poll fields.', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/commands/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: 'poll',
+                        args: [question, option1, option2]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Poll created successfully!', 'success');
+                    document.getElementById('pollForm').reset();
+                } else {
+                    showAlert(`Error creating poll: ${data.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error creating poll:', error);
+                showAlert('Error creating poll. Please try again.', 'danger');
+            }
+        }
+        
+        // Notification setup functions
+        async function setNotificationChannel() {
+            const notificationType = document.getElementById('notificationType').value;
+            const channelId = document.getElementById('channelId').value.trim();
+            
+            if (!notificationType || !channelId) {
+                showAlert('Please fill in all fields.', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/commands/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: 'setnotifchannel',
+                        args: [notificationType, `<#${channelId}>`]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`${notificationType.charAt(0).toUpperCase() + notificationType.slice(1)} notification channel set successfully!`, 'success');
+                    document.getElementById('setChannelForm').reset();
+                } else {
+                    showAlert(`Error setting channel: ${data.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error setting notification channel:', error);
+                showAlert('Error setting notification channel. Please try again.', 'danger');
+            }
+        }
+        
+        async function setPingRole() {
+            const notificationType = document.getElementById('pingNotificationType').value;
+            const roleId = document.getElementById('roleId').value.trim();
+            
+            if (!notificationType || !roleId) {
+                showAlert('Please fill in all fields.', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/commands/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: 'setpingrole',
+                        args: [notificationType, `<@&${roleId}>`]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`${notificationType.charAt(0).toUpperCase() + notificationType.slice(1)} ping role set successfully!`, 'success');
+                    document.getElementById('setPingRoleForm').reset();
+                } else {
+                    showAlert(`Error setting role: ${data.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error setting ping role:', error);
+                showAlert('Error setting ping role. Please try again.', 'danger');
+            }
+        }
+        
+        async function setPingTimeout() {
+            const timeoutMinutes = document.getElementById('timeoutMinutes').value;
+            
+            if (!timeoutMinutes || timeoutMinutes < 1 || timeoutMinutes > 60) {
+                showAlert('Please enter a valid timeout (1-60 minutes).', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/commands/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: 'setpingtimeout',
+                        args: [parseInt(timeoutMinutes)]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`Ping timeout set to ${timeoutMinutes} minutes!`, 'success');
+                    document.getElementById('setPingTimeoutForm').reset();
+                } else {
+                    showAlert(`Error setting timeout: ${data.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error setting timeout:', error);
+                showAlert('Error setting timeout. Please try again.', 'danger');
+            }
+        }
+        
+        // Notification form management functions
+        function showNotificationForm(formType) {
+            // Hide all forms first
+            hideNotificationForms();
+            
+            // Show the notifications form container
+            document.getElementById('notificationForms').style.display = 'block';
+            
+            // Show the specific form based on type
+            if (formType === 'channel') {
+                document.getElementById('channelFormCard').style.display = 'block';
+            } else if (formType === 'role') {
+                document.getElementById('roleFormCard').style.display = 'block';
+            } else if (formType === 'timeout') {
+                document.getElementById('timeoutFormCard').style.display = 'block';
+            } else if (formType === 'schedule') {
+                document.getElementById('scheduleFormCard').style.display = 'block';
+            }
+        }
+        
+        function hideNotificationForms() {
+            document.getElementById('notificationForms').style.display = 'none';
+            document.getElementById('channelFormCard').style.display = 'none';
+            document.getElementById('roleFormCard').style.display = 'none';
+            document.getElementById('timeoutFormCard').style.display = 'none';
+            document.getElementById('scheduleFormCard').style.display = 'none';
+        }
+        
+        // Notification tab form handlers
+        async function setNotificationChannelTab() {
+            const notificationType = document.getElementById('notificationTypeTab').value;
+            const channelId = document.getElementById('channelIdTab').value.trim();
+            
+            if (!notificationType || !channelId) {
+                showAlert('Please fill in all fields.', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/commands/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: 'setnotifchannel',
+                        args: [notificationType, `<#${channelId}>`]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`${notificationType.charAt(0).toUpperCase() + notificationType.slice(1)} notification channel set successfully!`, 'success');
+                    document.getElementById('setChannelFormTab').reset();
+                    hideNotificationForms();
+                } else {
+                    showAlert(`Error setting channel: ${data.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error setting notification channel:', error);
+                showAlert('Error setting notification channel. Please try again.', 'danger');
+            }
+        }
+        
+        async function setPingRoleTab() {
+            const notificationType = document.getElementById('pingNotificationTypeTab').value;
+            const roleId = document.getElementById('roleIdTab').value.trim();
+            
+            if (!notificationType || !roleId) {
+                showAlert('Please fill in all fields.', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/commands/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: 'setpingrole',
+                        args: [notificationType, `<@&${roleId}>`]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`${notificationType.charAt(0).toUpperCase() + notificationType.slice(1)} ping role set successfully!`, 'success');
+                    document.getElementById('setPingRoleFormTab').reset();
+                    hideNotificationForms();
+                } else {
+                    showAlert(`Error setting role: ${data.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error setting ping role:', error);
+                showAlert('Error setting ping role. Please try again.', 'danger');
+            }
+        }
+        
+        async function setPingTimeoutTab() {
+            const timeoutMinutes = document.getElementById('timeoutMinutesTab').value;
+            
+            if (!timeoutMinutes || timeoutMinutes < 1 || timeoutMinutes > 60) {
+                showAlert('Please enter a valid timeout (1-60 minutes).', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/commands/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: 'setpingtimeout',
+                        args: [parseInt(timeoutMinutes)]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`Ping timeout set to ${timeoutMinutes} minutes!`, 'success');
+                    document.getElementById('setPingTimeoutFormTab').reset();
+                    hideNotificationForms();
+                } else {
+                    showAlert(`Error setting timeout: ${data.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error setting timeout:', error);
+                showAlert('Error setting timeout. Please try again.', 'danger');
+            }
+        }
+        
+        // Set schedule notification timing
+        async function setScheduleNotifTimingTab() {
+            const scheduleId = document.getElementById('scheduleIdTab').value;
+            const notifyMinutes = document.getElementById('notifyMinutesTab').value;
+            
+            if (!scheduleId || scheduleId < 1) {
+                showAlert('Please enter a valid schedule ID.', 'warning');
+                return;
+            }
+            
+            if (!notifyMinutes || notifyMinutes < 1 || notifyMinutes > 120) {
+                showAlert('Please enter valid notification timing (1-120 minutes).', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/commands/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: 'schedulenotif',
+                        args: [scheduleId, notifyMinutes]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`Schedule notification timing updated to ${notifyMinutes} minutes before!`, 'success');
+                    document.getElementById('setScheduleNotifFormTab').reset();
+                    hideNotificationForms();
+                } else {
+                    showAlert(`Error setting schedule timing: ${data.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error setting schedule timing:', error);
+                showAlert('Error setting schedule timing. Please try again.', 'danger');
+            }
+        }
+        
+        // Refresh configurations
+        function refreshConfigs() {
+            location.reload();
+        }
+        
+        // Show specific interface based on command type
+        function showInterface(interfaceType, commandName = null) {
+            console.log('showInterface called with:', interfaceType);
+            
+            // Hide all interfaces
+            document.querySelectorAll('.dynamic-interface').forEach(interface => {
+                interface.style.display = 'none';
+            });
+            
+            // Update section title and show appropriate interface
+            const titleElement = document.getElementById('dynamicSectionTitle');
+            
+            switch(interfaceType) {
+                case 'stream':
+                case 'addstream':
+                case 'removestream':
+                case 'checkstream':
+                case 'livestreams':
+                case 'timeslots':
+                case 'addslot':
+                case 'removeslot':
+                case 'activeslot':
+                    console.log('Showing stream interface');
+                    titleElement.innerHTML = '<i class="fas fa-video"></i> Stream Management';
+                    document.getElementById('streamInterface').style.display = 'block';
+                    break;
+                case 'twitchcord':
+                case 'attendance':
+                case 'streak':
+                case 'poll':
+                case 'streams':
+                case 'analytics':
+                case 'raidstats':
+                case 'leaderboard':
+                case 'twitchhelp':
+                case 'twitchstatus':
+                    console.log('Showing twitchcord interface');
+                    titleElement.innerHTML = '<i class="fas fa-gamepad"></i> TwitchCord Features';
+                    document.getElementById('twitchcordInterface').style.display = 'block';
+                    break;
+                case 'basic':
+                case 'ping':
+                case 'info':
+                case 'uptime':
+                case 'status':
+                case 'servers':
+                case 'updates':
+                    console.log('Showing basic interface');
+                    titleElement.innerHTML = '<i class="fas fa-info-circle"></i> Bot Information & Status';
+                    document.getElementById('basicInterface').style.display = 'block';
+                    break;
+                case 'database':
+                case 'dbstats':
+                case 'topusers':
+                case 'guildinfo':
+                    console.log('Showing database interface');
+                    titleElement.innerHTML = '<i class="fas fa-database"></i> Database Operations';
+                    document.getElementById('databaseInterface').style.display = 'block';
+                    break;
+                case 'support':
+                case 'help':
+                case 'invite':
+                case 'botinvite':
+                    console.log('Showing support interface');
+                    titleElement.innerHTML = '<i class="fas fa-life-ring"></i> Support & Help';
+                    document.getElementById('supportInterface').style.display = 'block';
+                    break;
+                case 'setnotifchannel':
+                case 'setpingrole':
+                case 'setpingtimeout':
+                case 'notifications':
+                    console.log('Showing notification interface');
+                    titleElement.innerHTML = '<i class="fas fa-bell"></i> Notification Setup';
+                    document.getElementById('notificationInterface').style.display = 'block';
+                    break;
+                case 'forwarding':
+                case 'addforward':
+                case 'removeforward':
+                case 'listforwards':
+                case 'testforward':
+                case 'startforward':
+                case 'stopforward':
+                default:
+                    console.log('Showing forwarding interface (default)');
+                    titleElement.innerHTML = '<i class="fas fa-share-alt"></i> Message Forwarding Management';
+                    document.getElementById('forwardingInterface').style.display = 'block';
+                    break;
+            }
+            
+            // Scroll to the dynamic section
+            document.getElementById('dynamicSectionTitle').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }
+        
+        // Execute bot command from dashboard
+        async function executeCommand(commandName) {
+            const button = event.target.closest('button');
+            const originalHtml = button.innerHTML;
+            
+            // Change interface based on command type
+            showInterface(commandName);
+            
+            // Show loading state
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Executing...';
+            
+            try {
+                const response = await fetch('/api/commands/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: commandName,
+                        args: []
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show command result
+                    const outputDiv = document.getElementById('commandOutput');
+                    const resultDiv = document.getElementById('commandResult');
+                    
+                    let resultHtml = `
+                        <h6><i class="fas fa-terminal"></i> Command: !${data.command}</h6>
+                        <p class="mb-2"><strong>Description:</strong> ${data.description}</p>
+                        <p class="mb-2"><strong>Executed at:</strong> ${data.timestamp}</p>
+                    `;
+                    
+                    // Add specific data if available
+                    if (data.data) {
+                        resultHtml += '<hr><h6><i class="fas fa-chart-bar"></i> Results:</h6>';
+                        
+                        if (data.command === 'ping' && data.data.latency_ms !== undefined) {
+                            const latency = data.data.latency_ms;
+                            const quality = latency < 100 ? 'Excellent' : latency < 200 ? 'Good' : latency < 300 ? 'Fair' : 'Poor';
+                            const color = latency < 100 ? 'success' : latency < 200 ? 'warning' : 'danger';
+                            resultHtml += `<span class="badge bg-${color}">Latency: ${latency}ms (${quality})</span>`;
+                        } else if (data.command === 'info' && data.data) {
+                            resultHtml += `
+                                <div class="row text-center">
+                                    <div class="col-3"><strong>${data.data.guilds}</strong><br><small>Servers</small></div>
+                                    <div class="col-3"><strong>${data.data.users.toLocaleString()}</strong><br><small>Users</small></div>
+                                    <div class="col-3"><strong>${data.data.commands_executed}</strong><br><small>Commands</small></div>
+                                    <div class="col-3"><strong>${data.data.messages_seen.toLocaleString()}</strong><br><small>Messages</small></div>
+                                </div>
+                            `;
+                        } else if (data.command === 'uptime' && data.data.uptime_seconds !== undefined) {
+                            const seconds = data.data.uptime_seconds;
+                            const days = Math.floor(seconds / 86400);
+                            const hours = Math.floor((seconds % 86400) / 3600);
+                            const minutes = Math.floor((seconds % 3600) / 60);
+                            resultHtml += `<span class="badge bg-info">Uptime: ${days}d ${hours}h ${minutes}m</span>`;
+                        } else if (data.command === 'servers' && data.data.servers) {
+                            resultHtml += '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Server Name</th><th>Members</th></tr></thead><tbody>';
+                            data.data.servers.forEach(server => {
+                                resultHtml += `<tr><td>${server.name}</td><td>${server.members || 'Unknown'}</td></tr>`;
+                            });
+                            resultHtml += '</tbody></table></div>';
+                        } else if (data.command === 'leaderboard' && data.data) {
+                            // Display leaderboard with proper formatting
+                            resultHtml += '<div class="mt-3">';
+                            resultHtml += '<h6><i class="fas fa-trophy text-warning"></i> Raid Train Leaderboard</h6>';
+                            if (data.data.leaders && data.data.leaders.length > 0) {
+                                resultHtml += '<div class="table-responsive"><table class="table table-striped table-sm"><thead><tr><th>Rank</th><th>Username</th><th>Score</th></tr></thead><tbody>';
+                                data.data.leaders.forEach((leader, index) => {
+                                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : (index + 1) + '️⃣';
+                                    resultHtml += `<tr><td>${medal}</td><td><strong>${leader.name}</strong></td><td>${leader.score} raids</td></tr>`;
+                                });
+                                resultHtml += '</tbody></table></div>';
+                            } else {
+                                resultHtml += '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> No leaderboard data available yet. Raid trains need to happen first!</div>';
+                            }
+                            resultHtml += '</div>';
+                        } else if (data.command === 'raidstats' && data.data) {
+                            // Display raid statistics  
+                            resultHtml += '<div class="mt-3">';
+                            resultHtml += '<h6><i class="fas fa-chart-line text-info"></i> Raid Train Statistics</h6>';
+                            if (data.data.stats) {
+                                resultHtml += `
+                                    <div class="row text-center">
+                                        <div class="col-3"><strong>${data.data.stats.total_raids || 0}</strong><br><small>Total Raids</small></div>
+                                        <div class="col-3"><strong>${data.data.stats.active_participants || 0}</strong><br><small>Active Users</small></div>
+                                        <div class="col-3"><strong>${data.data.stats.avg_attendance || 0}%</strong><br><small>Avg Attendance</small></div>
+                                        <div class="col-3"><strong>${data.data.stats.success_rate || 0}%</strong><br><small>Success Rate</small></div>
+                                    </div>
+                                `;
+                            } else {
+                                resultHtml += '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> No raid statistics available yet.</div>';
+                            }
+                            resultHtml += '</div>';
+                        } else if (data.command === 'analytics' && data.data) {
+                            // Display TwitchCord analytics
+                            resultHtml += '<div class="mt-3">';
+                            resultHtml += '<h6><i class="fas fa-chart-bar text-success"></i> TwitchCord Analytics</h6>';
+                            if (data.data.analytics) {
+                                resultHtml += `
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>Activity Overview</h6>
+                                            <ul class="list-unstyled">
+                                                <li><strong>Messages:</strong> ${data.data.analytics.messages || 0}</li>
+                                                <li><strong>Commands Used:</strong> ${data.data.analytics.commands_used || 0}</li>
+                                                <li><strong>Active Users:</strong> ${data.data.analytics.active_users || 0}</li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>Engagement Stats</h6>
+                                            <ul class="list-unstyled">
+                                                <li><strong>Poll Participation:</strong> ${data.data.analytics.poll_participation || 0}%</li>
+                                                <li><strong>Stream Interactions:</strong> ${data.data.analytics.stream_interactions || 0}</li>
+                                                <li><strong>Community Score:</strong> ${data.data.analytics.community_score || 0}/100</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                resultHtml += '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> No analytics data available yet.</div>';
+                            }
+                            resultHtml += '</div>';
+                        } else if (data.command === 'streams' && data.data) {
+                            // Display monitored streams
+                            resultHtml += '<div class="mt-3">';
+                            resultHtml += '<h6><i class="fas fa-stream text-primary"></i> Monitored Streams</h6>';
+                            if (data.data.streams && data.data.streams.length > 0) {
+                                resultHtml += '<div class="table-responsive"><table class="table table-striped table-sm"><thead><tr><th>Streamer</th><th>Status</th><th>Category</th><th>Last Seen</th></tr></thead><tbody>';
+                                data.data.streams.forEach(stream => {
+                                    const statusBadge = stream.online ? '<span class="badge bg-success">🔴 Live</span>' : '<span class="badge bg-secondary">Offline</span>';
+                                    resultHtml += `<tr><td><strong>${stream.username}</strong></td><td>${statusBadge}</td><td>${stream.category || 'Unknown'}</td><td>${stream.last_seen || 'Never'}</td></tr>`;
+                                });
+                                resultHtml += '</tbody></table></div>';
+                            } else {
+                                resultHtml += '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> No streams being monitored yet.</div>';
+                            }
+                            resultHtml += '</div>';
+                        } else if (data.command === 'dbstats' && data.data) {
+                            // Display database statistics
+                            resultHtml += '<div class="mt-3">';
+                            resultHtml += '<h6><i class="fas fa-database text-primary"></i> Database Statistics</h6>';
+                            if (data.data.stats) {
+                                resultHtml += `
+                                    <div class="row text-center">
+                                        <div class="col-3"><strong>${data.data.stats.total_guilds || 0}</strong><br><small>Servers</small></div>
+                                        <div class="col-3"><strong>${data.data.stats.total_users || 0}</strong><br><small>Users</small></div>
+                                        <div class="col-3"><strong>${data.data.stats.total_messages || 0}</strong><br><small>Messages</small></div>
+                                        <div class="col-3"><strong>${data.data.stats.forwarding_configs || 0}</strong><br><small>Forwards</small></div>
+                                    </div>
+                                    <div class="mt-2 text-center">
+                                        <span class="badge bg-info">Database Size: ${data.data.stats.database_size || 'Unknown'}</span>
+                                    </div>
+                                `;
+                            } else {
+                                resultHtml += '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> No database statistics available.</div>';
+                            }
+                            resultHtml += '</div>';
+                        } else if (data.command === 'topusers' && data.data) {
+                            // Display top users
+                            resultHtml += '<div class="mt-3">';
+                            resultHtml += '<h6><i class="fas fa-users text-success"></i> Most Active Users</h6>';
+                            if (data.data.users && data.data.users.length > 0) {
+                                resultHtml += '<div class="table-responsive"><table class="table table-striped table-sm"><thead><tr><th>Rank</th><th>Username</th><th>Messages</th><th>Last Active</th></tr></thead><tbody>';
+                                data.data.users.forEach((user, index) => {
+                                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : (index + 1) + '️⃣';
+                                    resultHtml += `<tr><td>${medal}</td><td><strong>${user.name}</strong></td><td>${user.message_count || 0}</td><td>${user.last_active || 'Unknown'}</td></tr>`;
+                                });
+                                resultHtml += '</tbody></table></div>';
+                            } else {
+                                resultHtml += '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> No user activity data available yet.</div>';
+                            }
+                            resultHtml += '</div>';
+                        } else if (data.command === 'dbinfo' && data.data) {
+                            // Display database info
+                            resultHtml += '<div class="mt-3">';
+                            resultHtml += '<h6><i class="fas fa-server text-info"></i> Database Information</h6>';
+                            if (data.data.info) {
+                                resultHtml += `
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <ul class="list-unstyled">
+                                                <li><strong>Status:</strong> <span class="badge bg-success">${data.data.info.connection_status || 'Unknown'}</span></li>
+                                                <li><strong>Type:</strong> ${data.data.info.database_type || 'Unknown'}</li>
+                                                <li><strong>Version:</strong> ${data.data.info.version || 'Unknown'}</li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <ul class="list-unstyled">
+                                                <li><strong>Uptime:</strong> ${data.data.info.uptime || 'Unknown'}</li>
+                                                <li><strong>Connections:</strong> ${data.data.info.active_connections || 0}</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                resultHtml += '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> No database information available.</div>';
+                            }
+                            resultHtml += '</div>';
+                        }
+                    }
+                    
+                    resultDiv.innerHTML = resultHtml;
+                    outputDiv.style.display = 'block';
+                    
+                    // Scroll to result
+                    outputDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    
+                    showAlert(`Command "${commandName}" executed successfully!`, 'success');
+                } else {
+                    showAlert(`Error executing command: ${data.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error executing command:', error);
+                showAlert('Error executing command. Please try again.', 'danger');
+            } finally {
+                // Restore button state
+                button.disabled = false;
+                button.innerHTML = originalHtml;
+            }
+        }
+        
+        // Show alert message
+        function showAlert(message, type = 'info') {
+            // Remove existing alerts
+            const existingAlerts = document.querySelectorAll('.custom-alert');
+            existingAlerts.forEach(alert => alert.remove());
+            
+            // Create alert
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show custom-alert`;
+            alertDiv.style.position = 'fixed';
+            alertDiv.style.top = '20px';
+            alertDiv.style.right = '20px';
+            alertDiv.style.zIndex = '9999';
+            alertDiv.style.minWidth = '300px';
+            
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(alertDiv);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+        
+        // Pause auto-refresh when user is actively using the interface
+        function pauseAutoRefresh() {
+            clearTimeout(autoRefreshTimeout);
+            autoRefreshTimeout = setTimeout(function() {
+                location.reload();
+            }, 60000); // Extended to 60 seconds when actively using
+        }
+        
+        // Set up auto-refresh (paused when using management features)
+        autoRefreshTimeout = setTimeout(function() {
+            location.reload();
+        }, 30000);
+        
+        // Pause refresh when interacting with forms
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('#addConfigForm') || e.target.closest('button[onclick*="toggleConfig"]') || e.target.closest('button[onclick*="deleteConfig"]')) {
+                pauseAutoRefresh();
+            }
+        });
+    </script>
+</body>
+</html>

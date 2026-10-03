@@ -1,0 +1,20 @@
+Metadata-Version: 2.4
+Name: discord-bot-server
+Version: 0.1.0
+Summary: Advanced Discord bot hosting solution with robust server management capabilities
+Requires-Python: >=3.11
+Requires-Dist: aiohttp==3.13.4
+Requires-Dist: alembic>=1.16.4
+Requires-Dist: discord-py>=2.5.2
+Requires-Dist: flask>=3.1.3
+Requires-Dist: mako>=1.3.12
+Requires-Dist: openai>=2.44.0
+Requires-Dist: psutil>=7.0.0
+Requires-Dist: psycopg2-binary>=2.9.10
+Requires-Dist: pytz>=2025.2
+Requires-Dist: requests>=2.33.1
+Requires-Dist: sqlalchemy>=2.0.42
+Requires-Dist: stripe>=12.4.0
+Requires-Dist: urllib3>=2.6.3
+Requires-Dist: websockets>=15.0.1
+Requires-Dist: werkzeug>=3.1.8

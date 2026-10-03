@@ -1,0 +1,89 @@
+// client/src/components/dashboard/stats-grid.tsx
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent } from "@/components/ui/card";
+import { Radio, Users, MessageSquare, Heart } from "lucide-react";
+import type { SystemStatus } from "@shared/schema";
+
+export function StatsGrid() {
+  const { data: status, isLoading } = useQuery<SystemStatus>({
+    queryKey: ["/api/status"],
+    refetchInterval: 30000, // Real-time updates every 30 seconds
+  });
+
+  const stats = [
+    {
+      title: "Active Streams",
+      value: status?.activeStreams || 0,
+      change: "+2",
+      changeText: "from yesterday",
+      icon: Radio,
+      iconBg: "bg-emerald-100 dark:bg-emerald-900/20",
+      iconColor: "text-emerald-600 dark:text-emerald-400",
+      changeColor: "text-emerald-600 dark:text-emerald-400",
+    },
+    {
+      title: "Total Viewers",
+      value: status?.totalViewers || 0,
+      change: "+8.2%",
+      changeText: "vs last hour",
+      icon: Users,
+      iconBg: "bg-blue-100 dark:bg-blue-900/20",
+      iconColor: "text-blue-600 dark:text-blue-400",
+      changeColor: "text-blue-600 dark:text-blue-400",
+      format: "number",
+    },
+    {
+      title: "Messages Sent",
+      value: status?.messagesSent || 0,
+      change: "42",
+      changeText: "today",
+      icon: MessageSquare,
+      iconBg: "bg-violet-100 dark:bg-violet-900/20",
+      iconColor: "text-violet-600 dark:text-violet-400",
+      changeColor: "text-violet-600 dark:text-violet-400",
+    },
+    {
+      title: "Uptime",
+      value: status?.uptime || "99.8%",
+      change: "7 days",
+      changeText: "running",
+      icon: Heart,
+      iconBg: "bg-green-100 dark:bg-green-900/20",
+      iconColor: "text-green-600 dark:text-green-400",
+      changeColor: "text-green-600 dark:text-green-400",
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+      {stats.map((stat) => {
+        const Icon = stat.icon;
+        return (
+          <Card key={stat.title} className="border border-slate-200 dark:border-slate-700">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                    {stat.title}
+                  </p>
+                  <p className="text-3xl font-bold text-slate-900 dark:text-white">
+                    {typeof stat.value === "number" && stat.format === "number" 
+                      ? stat.value.toLocaleString() 
+                      : stat.value}
+                  </p>
+                </div>
+                <div className={`w-12 h-12 ${stat.iconBg} rounded-lg flex items-center justify-center`}>
+                  <Icon className={stat.iconColor} size={24} />
+                </div>
+              </div>
+              <div className="mt-4 flex items-center text-sm">
+                <span className={`${stat.changeColor} font-medium`}>{stat.change}</span>
+                <span className="text-slate-500 dark:text-slate-400 ml-1">{stat.changeText}</span>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}

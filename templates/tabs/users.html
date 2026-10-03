@@ -1,0 +1,214 @@
+<div class="row">
+    <!-- Trusted Users Card -->
+    <div class="col-lg-6 mb-4">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5><i class="fas fa-user-shield"></i> Trusted Users</h5>
+                <button class="btn btn-primary btn-sm" onclick="addTrustedUser()">
+                    <i class="fas fa-user-plus"></i> Add User
+                </button>
+            </div>
+            <hr>
+            
+            <div class="table-responsive">
+                <table class="table table-dark table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Granted By</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trusted-users-tbody">
+                        <tr>
+                            <td colspan="3" class="text-center">
+                                <div class="loading-spinner"></div> Loading trusted users...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Banned Users Card -->
+    <div class="col-lg-6 mb-4">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5><i class="fas fa-ban"></i> Banned Users</h5>
+                <button class="btn btn-danger btn-sm" onclick="banUser()">
+                    <i class="fas fa-user-slash"></i> Ban User
+                </button>
+            </div>
+            <hr>
+            
+            <div class="table-responsive">
+                <table class="table table-dark table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Reason</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="banned-users-tbody">
+                        <tr>
+                            <td colspan="3" class="text-center">
+                                <div class="loading-spinner"></div> Loading banned users...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trusted Roles Card -->
+<div class="row">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <h5><i class="fas fa-users-cog"></i> Trusted Roles</h5>
+            <hr>
+            
+            <div class="table-responsive">
+                <table class="table table-dark table-hover">
+                    <thead>
+                        <tr>
+                            <th>Server</th>
+                            <th>Role Name</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trusted-roles-tbody">
+                        <tr>
+                            <td colspan="3" class="text-center">
+                                <div class="loading-spinner"></div> Loading trusted roles...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Permissions Overview -->
+<div class="row">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <h5><i class="fas fa-shield-alt"></i> Permissions Overview</h5>
+            <hr>
+            
+            <div class="row text-center">
+                <div class="col-md-4 col-sm-6 mb-3">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #10b981, #059669);">
+                        <i class="fas fa-crown fa-2x mb-2"></i>
+                        <div class="stat-value">1</div>
+                        <div class="stat-label">Bot Owner</div>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-6 mb-3">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                        <i class="fas fa-user-shield fa-2x mb-2"></i>
+                        <div class="stat-value" id="trusted-count">0</div>
+                        <div class="stat-label">Trusted Users</div>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-12 mb-3">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                        <i class="fas fa-ban fa-2x mb-2"></i>
+                        <div class="stat-value" id="banned-count">0</div>
+                        <div class="stat-label">Banned Users</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function loadUsersData() {
+    const trustedTbody = document.getElementById('trusted-users-tbody');
+    const bannedTbody = document.getElementById('banned-users-tbody');
+    const rolesTbody = document.getElementById('trusted-roles-tbody');
+    
+    try {
+        const trustedResp = await fetch('/api/trusted-users');
+        if (trustedResp.ok) {
+            const trustedData = await trustedResp.json();
+            
+            if (trustedData.users && trustedData.users.length > 0) {
+                trustedTbody.innerHTML = trustedData.users.map(user => `
+                    <tr>
+                        <td><strong style="color: #60a5fa;">${user.discord_name}</strong></td>
+                        <td><small style="color: #a5f3fc;">${user.granted_by || 'Unknown'}</small></td>
+                        <td><small style="color: #a5f3fc;">${user.created_at || 'N/A'}</small></td>
+                    </tr>
+                `).join('');
+                document.getElementById('trusted-count').textContent = trustedData.count;
+            } else {
+                trustedTbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No additional trusted users</td></tr>';
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load trusted users:', error);
+        trustedTbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">Error loading data</td></tr>';
+    }
+    
+    try {
+        const bannedResp = await fetch('/api/banned-users');
+        if (bannedResp.ok) {
+            const bannedData = await bannedResp.json();
+            
+            if (bannedData.users && bannedData.users.length > 0) {
+                bannedTbody.innerHTML = bannedData.users.map(user => `
+                    <tr>
+                        <td><strong style="color: #60a5fa;">${user.discord_name}</strong></td>
+                        <td><small style="color: #93c5fd;">${user.reason || 'No reason provided'}</small></td>
+                        <td><small style="color: #a5f3fc;">${user.banned_at || 'N/A'}</small></td>
+                    </tr>
+                `).join('');
+                document.getElementById('banned-count').textContent = bannedData.count;
+            } else {
+                bannedTbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No banned users</td></tr>';
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load banned users:', error);
+        bannedTbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">Error loading data</td></tr>';
+    }
+    
+    try {
+        const rolesResp = await fetch('/api/trusted-roles');
+        if (rolesResp.ok) {
+            const rolesData = await rolesResp.json();
+            
+            if (rolesData.roles && rolesData.roles.length > 0) {
+                rolesTbody.innerHTML = rolesData.roles.map(role => `
+                    <tr>
+                        <td><strong style="color: #60a5fa;">${role.guild_name}</strong></td>
+                        <td><span class="badge bg-primary" style="color: #93c5fd;">${role.role_name}</span></td>
+                        <td><small style="color: #a5f3fc;">${role.created_at || 'N/A'}</small></td>
+                    </tr>
+                `).join('');
+            } else {
+                rolesTbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No trusted roles configured</td></tr>';
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load trusted roles:', error);
+        rolesTbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">Error loading data</td></tr>';
+    }
+}
+
+function addTrustedUser() {
+    alert('Use Discord command: /addtrusted @user');
+}
+
+function banUser() {
+    alert('Use Discord command: /banuser @user [reason]');
+}
+
+document.getElementById('users-tab').addEventListener('shown.bs.tab', loadUsersData);
+</script>

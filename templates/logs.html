@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+
+{% block title %}Activity Logs - Train Bot{% endblock %}
+
+{% block extra_head %}
+<style>
+.log-entry {
+    border-left: 4px solid #dee2e6;
+    background-color: #f8f9fa;
+}
+.log-entry.forwarded {
+    border-left-color: #28a745;
+    background-color: #d4edda;
+}
+.log-entry:hover {
+    background-color: #e9ecef;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-file-alt"></i> Activity Logs</h2>
+    <div class="btn-group">
+        <button class="btn btn-outline-primary" onclick="refreshLogs()">
+            <i class="fas fa-sync"></i> Refresh
+        </button>
+        <button class="btn btn-outline-secondary" onclick="exportLogs()">
+            <i class="fas fa-download"></i> Export
+        </button>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ "{:,}".format(total_messages) }}</h4>
+                        <p class="mb-0">Total Messages</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-comments fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ "{:,}".format(forwarded_count) }}</h4>
+                        <p class="mb-0">Forwarded Messages</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-share-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ "{:.1f}%".format((forwarded_count / total_messages * 100) if total_messages > 0 else 0) }}</h4>
+                        <p class="mb-0">Forward Rate</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-percentage fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card shadow mb-4">
+    <div class="card-header">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-filter"></i> Filters
+        </h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">Show</label>
+                    <select class="form-select" id="filterType">
+                        <option value="all">All Messages</option>
+                        <option value="forwarded">Forwarded Only</option>
+                        <option value="not_forwarded">Not Forwarded</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">Guild</label>
+                    <select class="form-select" id="filterGuild">
+                        <option value="">All Guilds</option>
+                        <!-- Guild options would be populated dynamically -->
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">Time Range</label>
+                    <select class="form-select" id="filterTime">
+                        <option value="1h">Last Hour</option>
+                        <option value="24h" selected>Last 24 Hours</option>
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <button class="btn btn-primary" onclick="applyFilters()">
+                            <i class="fas fa-search"></i> Apply
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Messages -->
+<div class="card shadow">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-history"></i> Recent Activity
+        </h6>
+        <span class="badge bg-secondary">{{ recent_messages|length }} entries</span>
+    </div>
+    <div class="card-body p-0">
+        {% if recent_messages %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Time</th>
+                            <th>User</th>
+                            <th>Guild</th>
+                            <th>Channel</th>
+                            <th>Content</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for message in recent_messages %}
+                        <tr class="log-entry {{ 'forwarded' if message.was_forwarded else '' }}">
+                            <td class="text-muted small">
+                                {{ message.timestamp.strftime('%H:%M:%S') }}<br>
+                                <small>{{ message.timestamp.strftime('%Y-%m-%d') }}</small>
+                            </td>
+                            <td>
+                                <strong>User ID: {{ message.user_id or 'Unknown' }}</strong><br>
+                                <small class="text-muted">ID: {{ message.user_id }}</small>
+                            </td>
+                            <td class="text-muted">
+                                {{ message.guild_id }}
+                            </td>
+                            <td class="text-muted">
+                                {{ message.channel_id }}
+                            </td>
+                            <td>
+                                {% if message.content %}
+                                    {% if message.content|length > 100 %}
+                                        <span class="content-preview">
+                                            {{ message.content[:100] }}...
+                                            <a href="#" class="text-primary small" onclick="toggleContent(this)">Show more</a>
+                                        </span>
+                                        <span class="content-full d-none">
+                                            {{ message.content }}
+                                            <a href="#" class="text-primary small" onclick="toggleContent(this)">Show less</a>
+                                        </span>
+                                    {% else %}
+                                        {{ message.content }}
+                                    {% endif %}
+                                {% else %}
+                                    <em class="text-muted">No content</em>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if message.was_forwarded %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check"></i> Forwarded
+                                    </span>
+                                    {% if message.forwarded_to_channel %}
+                                        <br><small class="text-muted">To: {{ message.forwarded_to_channel }}</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-secondary">
+                                        <i class="fas fa-minus"></i> Normal
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary btn-sm" 
+                                            onclick="viewMessage({{ message.id }})" 
+                                            title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    {% if not message.was_forwarded %}
+                                    <button class="btn btn-outline-success btn-sm" 
+                                            onclick="forwardMessage({{ message.id }})" 
+                                            title="Force Forward">
+                                        <i class="fas fa-share"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No messages found</h5>
+                <p class="text-muted">No activity has been logged yet or your filters are too restrictive.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Message Details Modal -->
+<div class="modal fade" id="messageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-comment"></i> Message Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="messageDetails">
+                    <!-- Message details will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function refreshLogs() {
+    location.reload();
+}
+
+function exportLogs() {
+    // This would implement log export functionality
+    alert('Log export feature coming soon!');
+}
+
+function applyFilters() {
+    const filterType = document.getElementById('filterType').value;
+    const filterGuild = document.getElementById('filterGuild').value;
+    const filterTime = document.getElementById('filterTime').value;
+    
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (filterType !== 'all') params.append('type', filterType);
+    if (filterGuild) params.append('guild', filterGuild);
+    if (filterTime) params.append('time', filterTime);
+    
+    // Reload page with filters
+    window.location.href = window.location.pathname + '?' + params.toString();
+}
+
+function toggleContent(element) {
+    const preview = element.closest('td').querySelector('.content-preview');
+    const full = element.closest('td').querySelector('.content-full');
+    
+    preview.classList.toggle('d-none');
+    full.classList.toggle('d-none');
+}
+
+function viewMessage(messageId) {
+    // Load message details
+    document.getElementById('messageDetails').innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('messageModal'));
+    modal.show();
+    
+    // This would fetch message details from an API
+    setTimeout(() => {
+        document.getElementById('messageDetails').innerHTML = `
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                Message details functionality coming soon!
+            </div>
+        `;
+    }, 1000);
+}
+
+function forwardMessage(messageId) {
+    if (confirm('Force forward this message through available forwarding rules?')) {
+        alert('Force forward functionality coming soon!');
+    }
+}
+
+// Auto-refresh every 30 seconds
+setInterval(function() {
+    // Only auto-refresh if no filters are applied
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.toString() === '') {
+        location.reload();
+    }
+}, 30000);
+</script>
+{% endblock %}

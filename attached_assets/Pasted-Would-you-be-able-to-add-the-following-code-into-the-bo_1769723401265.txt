@@ -1,0 +1,151 @@
+Would you be able to add the following code into the bot, if its not inside of there already
+
+import asyncio
+import signal
+import sys
+import gc
+from datetime import datetime
+import psutil
+import os
+
+# ==============================
+# GLOBAL STATE (kept minimal)
+# ==============================
+
+active_raids = {}     # Stores active raid data per channel
+running_tasks = {}    # Stores running asyncio tasks
+shutting_down = False # Tracks shutdown state
+
+# ==============================
+# MEMORY LOGGER
+# ==============================
+async def memory_logger():
+    """
+    Logs memory usage every 60 seconds.
+    Helps detect memory leaks.
+    """
+    process = psutil.Process(os.getpid())
+    while not shutting_down:
+        gc.collect()
+        mem_mb = process.memory_info().rss / 1024 ** 2
+        print(f"[MEMORY CHECK] {datetime.utcnow().isoformat()} - GC ran - Memory: {mem_mb:.2f} MB")
+        await asyncio.sleep(60)
+
+# ==============================
+# RAID FUNCTIONS
+# ==============================
+async def start_raid(channel_name):
+    """
+    Starts a raid train for a channel.
+    Prevents duplicate raids or tasks.
+    """
+    if channel_name in active_raids:
+        print(f"[INFO] Raid already active for {channel_name}")
+        return
+
+    print(f"[RAID START] {channel_name}")
+
+    active_raids[channel_name] = {
+        "started_at": datetime.utcnow(),
+        "attendance": set(),   # Use set for lower memory
+        "messages_sent": 0
+    }
+
+    # Create and store a repeating task safely
+    task = asyncio.create_task(raid_loop(channel_name))
+    task.add_done_callback(lambda t: t.exception() if t.exception() else None)
+    running_tasks[channel_name] = task
+
+async def raid_loop(channel_name):
+    """
+    Runs automated messages during an active raid.
+    Stops cleanly when raid ends.
+    """
+    try:
+        while channel_name in active_raids and not shutting_down:
+            print(f"[RAID MESSAGE] {channel_name}")
+            active_raids[channel_name]["messages_sent"] += 1
+            await asyncio.sleep(30)
+    except asyncio.CancelledError:
+        print(f"[TASK STOPPED] Raid loop cancelled for {channel_name}")
+    except Exception as e:
+        print(f"[ERROR] Raid loop for {channel_name}: {e}")
+        await end_raid(channel_name)
+
+async def end_raid(channel_name):
+    """
+    Ends a raid and clears ALL related memory.
+    """
+    print(f"[RAID END] {channel_name}")
+
+    task = running_tasks.pop(channel_name, None)
+    if task:
+        task.cancel()
+
+    active_raids.pop(channel_name, None)
+    gc.collect()
+
+# ==============================
+# CLEANUP STALE RAIDS (OPTIONAL)
+# ==============================
+async def cleanup_stale_raids():
+    """
+    Automatically ends raids that have been active too long.
+    """
+    while not shutting_down:
+        now = datetime.utcnow()
+        for channel, data in list(active_raids.items()):
+            if (now - data["started_at"]).seconds > 3600:  # 1 hour
+                print(f"[STALE RAID] Ending raid for {channel}")
+                await end_raid(channel)
+        await asyncio.sleep(300)  # check every 5 min
+
+# ==============================
+# SHUTDOWN
+# ==============================
+async def shutdown():
+    """
+    Gracefully shuts down the bot.
+    """
+    global shutting_down
+    shutting_down = True
+    print("[SHUTDOWN] Cleaning up tasks...")
+
+    for task in running_tasks.values():
+        task.cancel()
+
+    running_tasks.clear()
+    active_raids.clear()
+    gc.collect()
+    await asyncio.sleep(1)
+    print("[SHUTDOWN] Complete.")
+
+def handle_exit(sig, frame):
+    """
+    Handles process exit signals.
+    """
+    print(f"[SIGNAL] Received {sig}, shutting down...")
+    asyncio.create_task(shutdown())
+
+signal.signal(signal.SIGINT, handle_exit)
+signal.signal(signal.SIGTERM, handle_exit)
+
+# ==============================
+# MAIN LOOP
+# ==============================
+async def main():
+    """
+    Main bot entry point.
+    Starts background monitoring tasks.
+    """
+    asyncio.create_task(memory_logger())
+    asyncio.create_task(cleanup_stale_raids())
+
+    print("[BOT ONLINE] Ready for raid trains")
+
+    # KEEP THIS RUNNING
+    while not shutting_down:
+        await asyncio.sleep(1)
+
+if __name__ == "__main__":
+    asyncio.run(main())

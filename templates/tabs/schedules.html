@@ -1,0 +1,214 @@
+<div class="dashboard-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5><i class="fas fa-calendar-alt"></i> Train Schedules</h5>
+        <span class="text-muted small">Use Discord commands to create new schedules</span>
+    </div>
+    <hr>
+    
+    <div class="table-responsive">
+        <table class="table table-dark table-hover">
+            <thead>
+                <tr>
+                    <th>Server</th>
+                    <th>Name</th>
+                    <th>Day</th>
+                    <th>Time (EST)</th>
+                    <th>Participants</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="schedules-tbody">
+                <tr>
+                    <td colspan="7" class="text-center">
+                        <div class="loading-spinner"></div> Loading schedules...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Edit Schedule Modal -->
+<div class="modal fade" id="editScheduleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> Edit Train Schedule</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editScheduleForm">
+                    <input type="hidden" id="edit_schedule_id">
+                    
+                    <div class="mb-3">
+                        <label for="edit_name" class="form-label">Schedule Name</label>
+                        <input type="text" class="form-control bg-secondary text-light border-0" id="edit_name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_day" class="form-label">Day of Week</label>
+                        <select class="form-select bg-secondary text-light border-0" id="edit_day" required>
+                            <option value="0">Monday</option>
+                            <option value="1">Tuesday</option>
+                            <option value="2">Wednesday</option>
+                            <option value="3">Thursday</option>
+                            <option value="4">Friday</option>
+                            <option value="5">Saturday</option>
+                            <option value="6">Sunday</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_time" class="form-label">Start Time (Eastern Time - EST/EDT)</label>
+                        <input type="time" class="form-control bg-secondary text-light border-0" id="edit_time" required>
+                        <small class="text-muted">Enter time in Eastern Time (automatically handles Daylight Saving Time)</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_duration" class="form-label">Duration (minutes)</label>
+                        <input type="number" class="form-control bg-secondary text-light border-0" id="edit_duration" min="15" step="15" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_max_participants" class="form-label">Max Participants</label>
+                        <input type="number" class="form-control bg-secondary text-light border-0" id="edit_max_participants" min="1" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveScheduleEdit()"><i class="fas fa-save"></i> Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function loadSchedules() {
+    try {
+        const response = await fetch('/api/train/schedules');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        const schedules = data.schedules || data || [];
+        
+        const tbody = document.getElementById('schedules-tbody');
+        
+        if (schedules.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No schedules found</td></tr>';
+            return;
+        }
+        
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        
+        tbody.innerHTML = schedules.map(schedule => `
+            <tr>
+                <td><span style="color: #60a5fa; font-weight: bold;">${schedule.guild_name || 'Unknown Server'}</span></td>
+                <td><strong>${schedule.name || 'Unnamed'}</strong></td>
+                <td>${days[schedule.day_of_week] || 'Unknown'}</td>
+                <td>${schedule.time_display || schedule.start_time || '--:--'}</td>
+                <td><span class="badge bg-info">${schedule.participant_count || 0}</span></td>
+                <td>
+                    ${schedule.is_active ? 
+                        '<span class="badge bg-success">Active</span>' : 
+                        '<span class="badge bg-secondary">Inactive</span>'}
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary me-1" onclick="editSchedule(${schedule.id}, '${schedule.name}', ${schedule.day_of_week}, '${schedule.start_time}', ${schedule.duration_minutes}, ${schedule.max_participants})" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteSchedule(${schedule.id}, '${schedule.name}')" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+        
+    } catch (error) {
+        console.error('Failed to load schedules:', error);
+        document.getElementById('schedules-tbody').innerHTML = 
+            '<tr><td colspan="7" class="text-center text-danger">Failed to load schedules</td></tr>';
+    }
+}
+
+function editSchedule(id, name, day, time, duration, maxParticipants) {
+    // Populate the edit form
+    document.getElementById('edit_schedule_id').value = id;
+    document.getElementById('edit_name').value = name;
+    document.getElementById('edit_day').value = day;
+    
+    // Time is already in HH:MM format (will be sent to server as-is)
+    // Server will handle all timezone conversions
+    document.getElementById('edit_time').value = time;
+    document.getElementById('edit_duration').value = duration;
+    document.getElementById('edit_max_participants').value = maxParticipants;
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('editScheduleModal'));
+    modal.show();
+}
+
+async function saveScheduleEdit() {
+    const id = document.getElementById('edit_schedule_id').value;
+    const name = document.getElementById('edit_name').value;
+    const day = document.getElementById('edit_day').value;
+    const time = document.getElementById('edit_time').value; // Keep as-is, server handles conversion
+    const duration = document.getElementById('edit_duration').value;
+    const maxParticipants = document.getElementById('edit_max_participants').value;
+    
+    try {
+        const response = await fetch(`/api/train/schedules/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                name: name,
+                day_of_week: parseInt(day),
+                start_time_uk: time,  // UK wall-clock time, stored as-is
+                duration_minutes: parseInt(duration),
+                max_participants: parseInt(maxParticipants)
+            })
+        });
+        
+        if (response.ok) {
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('editScheduleModal')).hide();
+            // Reload schedules
+            await loadSchedules();
+            alert('Schedule updated successfully!');
+        } else {
+            const error = await response.json();
+            alert('Failed to update schedule: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error updating schedule:', error);
+        alert('Error updating schedule');
+    }
+}
+
+async function deleteSchedule(id, name) {
+    if (!confirm(`Are you sure you want to delete the schedule "${name}"? This action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/train/schedules/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            await loadSchedules();
+            alert('Schedule deleted successfully!');
+        } else {
+            const error = await response.json();
+            alert('Failed to delete schedule: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error deleting schedule:', error);
+        alert('Error deleting schedule');
+    }
+}
+
+document.getElementById('schedules-tab').addEventListener('shown.bs.tab', loadSchedules);
+</script>

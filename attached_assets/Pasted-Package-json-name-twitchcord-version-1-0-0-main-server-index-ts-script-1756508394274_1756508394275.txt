@@ -1,0 +1,1055 @@
+Package.json
+
+{
+  "name": "twitchcord",
+  "version": "1.0.0",
+  "main": "server/index.ts",
+  "scripts": {
+    "dev": "concurrently \"tsc --watch\" \"nodemon server/index.ts\" \"vite\"",
+    "build": "tsc && vite build",
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "tmi.js": "^1.8.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "wouter": "^2.7.7",
+    "@tanstack/react-query": "^4.35.0",
+    "date-fns-tz": "^1.3.7",
+    "clsx": "^1.2.1",
+    "tailwind-merge": "^1.14.2",
+    "lucide-react": "^0.257.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2",
+    "vite": "^5.1.0",
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.3"
+  }
+}
+
+tsconfig.json
+
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "jsx": "react-jsx",
+    "resolveJsonModule": true
+  },
+  "include": ["server/**/*.ts", "client/src/**/*", "client/**/*.ts", "client/**/*.tsx"]
+}
+
+tailwind.config.js
+
+import { defineConfig } from 'vite';
+export default defineConfig({
+  content: ['./client/**/*.{js,ts,jsx,tsx,html}'],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+});
+
+Server Entry: server/index.ts
+
+import express from 'express';
+import cors from 'cors';
+import { schedulerService } from './services/scheduler';
+import { chatService } from './services/chat';
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const port = process.env.PORT || 5000;
+
+app.get('/', (req, res) => res.send('TwitchCord backend running'));
+
+// Start scheduler & chat
+(async () => {
+  await schedulerService.start();
+})();
+
+app.listen(port, () => console.log(`Server running on port ${port}`));
+
+Server/Services/chat.ts
+
+import tmi from 'tmi.js';
+import { storage } from '../storage';
+
+export class TwitchChatService {
+  private client: tmi.Client | null = null;
+  private connectedChannels = new Set<string>();
+  private chatParticipants = new Map<string, Set<string>>();
+
+  constructor() { this.initializeClient(); }
+
+  private initializeClient() {
+    if (!process.env.TWITCH_CLIENT_ID) return;
+    this.client = new tmi.Client({
+      options: { debug: false },
+      connection: { reconnect: true, secure: true },
+      identity: { username: 'raid_train_bot', password: `oauth:${process.env.TWITCH_ACCESS_TOKEN}` }
+    });
+    this.setupEventHandlers();
+  }
+
+  private setupEventHandlers() {
+    if (!this.client) return;
+    this.client.on('connected', () => console.log('✅ Chat bot connected'));
+    this.client.on('disconnected', () => console.log('❌ Chat bot disconnected'));
+    this.client.on('join', async (channel, username, self) => { if (!self) await this.trackParticipant(channel.replace('#',''), username, 'join'); });
+    this.client.on('message', async (channel, tags, message, self) => { if (!self) await this.trackParticipant(channel.replace('#',''), tags.username || 'unknown', 'message'); });
+    this.client.on('part', async (channel, username, self) => { if (!self) await this.trackParticipant(channel.replace('#',''), username, 'part'); });
+  }
+
+  private async trackParticipant(streamUsername: string, chatUsername: string, action: 'join' | 'message' | 'part') {
+    if (!this.chatParticipants.has(streamUsername)) this.chatParticipants.set(streamUsername, new Set());
+    if (action !== 'part') this.chatParticipants.get(streamUsername)?.add(chatUsername);
+    await storage.upsertChatParticipant({ streamUsername, chatUsername, messageCount: action === 'message' ? 1 : 0 });
+  }
+
+  async connectToStream(username: string) { if (!this.client || this.connectedChannels.has(username)) return; await this.client.join(`#${username}`); this.connectedChannels.add(username); }
+  async disconnectFromStream(username: string) { if (!this.client || !this.connectedChannels.has(username)) return; await this.client.part(`#${username}`); this.connectedChannels.delete(username); this.chatParticipants.delete(username); }
+  getActiveParticipants(streamUsername: string) { return Array.from(this.chatParticipants.get(streamUsername) || []); }
+
+  async start() { if (!this.client) return false; try { await this.client.connect(); return true; } catch { return false; } }
+  async stop() { if (!this.client) return; await this.client.disconnect(); this.connectedChannels.clear(); this.chatParticipants.clear(); }
+  async syncWithLiveStreams(liveStreams: string[]) { for (const username of liveStreams) await this.connectToStream(username); for (const connected of this.connectedChannels) if (!liveStreams.includes(connected)) await this.disconnectFromStream(connected); }
+}
+
+export const chatService = new TwitchChatService();
+
+Server/services/discord.ts
+
+import axios from 'axios';
+
+export interface DiscordWebhookPayload {
+  content?: string;
+  username?: string;
+  embeds?: any[];
+}
+
+export class DiscordService {
+  constructor(
+    private webhookUrl: string,
+    private attendanceWebhookUrl?: string
+  ) {}
+
+  async testWebhook(): Promise<boolean> {
+    if (!this.webhookUrl) throw new Error('Discord webhook URL not configured');
+    try {
+      await axios.post(this.webhookUrl, {
+        content: '✅ TwitchCord webhook test successful!',
+        username: 'TwitchCord',
+      });
+      return true;
+    } catch (err) {
+      console.error('Error testing Discord webhook:', err);
+      return false;
+    }
+  }
+
+  async sendAttendanceUpdate(payload: { username: string; displayName: string; viewerCount: number; gameName: string; chatParticipants: string[] }) {
+    if (!this.attendanceWebhookUrl) return false;
+    try {
+      await axios.post(this.attendanceWebhookUrl, {
+        username: 'TwitchCord Attendance',
+        embeds: [{
+          title: `Attendance: ${payload.displayName}`,
+          fields: [
+            { name: 'Viewers', value: String(payload.viewerCount), inline: true },
+            { name: 'Game', value: payload.gameName, inline: true },
+            { name: 'Active Chat Participants', value: payload.chatParticipants.join(', ') || 'None' }
+          ],
+          color: 5814783
+        }]
+      });
+      return true;
+    } catch (err) {
+      console.error('Error sending attendance update:', err);
+      return false;
+    }
+  }
+
+  async sendShutdownMessage() {
+    if (!this.webhookUrl) return false;
+    try {
+      await axios.post(this.webhookUrl, { content: '🔴 TwitchCord raid train has been manually stopped.', username: 'TwitchCord' });
+      return true;
+    } catch (err) {
+      console.error('Error sending shutdown message:', err);
+      return false;
+    }
+  }
+}
+
+export const createDiscordService = (webhookUrl: string, attendanceWebhookUrl?: string) => new DiscordService(webhookUrl, attendanceWebhookUrl);
+
+Server/services/twitch.ts
+
+import axios from 'axios';
+
+export class TwitchService {
+  private clientId = process.env.TWITCH_CLIENT_ID!;
+  private clientSecret = process.env.TWITCH_CLIENT_SECRET!;
+  private accessToken = process.env.TWITCH_ACCESS_TOKEN!;
+
+  async getMultipleStreamsData(usernames: string[]) {
+    if (!usernames.length) return [];
+
+    const params = new URLSearchParams();
+    usernames.forEach(u => params.append('user_login', u));
+
+    try {
+      const res = await axios.get(`https://api.twitch.tv/helix/streams?${params.toString()}`, {
+        headers: {
+          'Client-ID': this.clientId,
+          Authorization: `Bearer ${this.accessToken}`
+        }
+      });
+      return res.data.data || [];
+    } catch (err) {
+      console.error('Error fetching Twitch streams:', err);
+      return [];
+    }
+  }
+}
+
+export const twitchService = new TwitchService();
+
+server/services/scheduler.ts
+
+import cron, { ScheduledTask } from 'node-cron';
+import { storage } from '../storage';
+import { twitchService } from './twitch';
+import { chatService } from './chat';
+import { createDiscordService } from './discord';
+
+export class SchedulerService {
+  private task: ScheduledTask | null = null;
+  private attendanceTask: ScheduledTask | null = null;
+  private currentTimeSlot: any = null;
+
+  async start() {
+    if (this.task) return;
+    this.task = cron.schedule('* * * * *', async () => await this.checkTimeSlots());
+    this.task.start();
+    console.log('🕒 Scheduler started');
+    await chatService.start();
+  }
+
+  async stop() {
+    this.task?.stop();
+    this.attendanceTask?.stop();
+    this.task = null;
+    this.attendanceTask = null;
+    this.currentTimeSlot = null;
+    await chatService.stop();
+    console.log('🛑 Scheduler stopped');
+  }
+
+  private addMinutesToTime(timeStr: string, minutes: number) {
+    const [h, m] = timeStr.split(':').map(Number);
+    const total = h * 60 + m + minutes;
+    return `${Math.floor(total/60)%24}`.padStart(2,'0')+`:${total%60}`.padStart(2,'0');
+  }
+
+  private timeToMinutes(timeStr: string) {
+    const [h, m] = timeStr.split(':').map(Number);
+    return h*60+m;
+  }
+
+  private isTimeInRange(current: string, start: string, end: string) {
+    const c=this.timeToMinutes(current), s=this.timeToMinutes(start), e=this.timeToMinutes(end);
+    return s<=e?c>=s&&c<=e:c>=s||c<=e;
+  }
+
+  private async checkTimeSlots() {
+    const slots = await storage.getActiveTimeSlots();
+    if (!slots.length) return;
+    const now = new Date();
+    const estTime = now.toLocaleString('en-US', {timeZone:'America/New_York', hour12:false}).split(', ')[1].substring(0,5);
+    const day = new Date().getDay();
+    let active=null;
+    for(const slot of slots) if(slot.dayOfWeek===day && this.isTimeInRange(estTime,slot.startTime,this.addMinutesToTime(slot.startTime,slot.duration))) {active=slot; break;}
+    if(active && (!this.currentTimeSlot || this.currentTimeSlot.id!==active.id)) {
+      console.log(`🕒 Slot started: ${active.streamDisplayName}`);
+      this.currentTimeSlot = active;
+      this.attendanceTask?.stop();
+      this.attendanceTask = cron.schedule('*/25 * * * *', async()=>await this.checkAllStreams());
+      this.attendanceTask.start();
+    }
+  }
+
+  async checkAllStreams() {
+    const streams = await storage.getStreams();
+    if(!streams.length) return;
+    const usernames = streams.map(s=>s.username);
+    const liveStreams = await twitchService.getMultipleStreamsData(usernames);
+    const webhookSetting = await storage.getSetting('discord_webhook_url');
+    const attendanceSetting = await storage.getSetting('attendance_webhook_url');
+    if(!webhookSetting?.value && !attendanceSetting?.value) return;
+    const discordService = createDiscordService(webhookSetting.value, attendanceSetting?.value);
+    let selected=null, liveData=null;
+    if(this.currentTimeSlot) {
+      const scheduled = streams.find(s=>s.username===this.currentTimeSlot.streamUsername);
+      if(scheduled) {
+        liveData=liveStreams.find(ls=>ls.user_login.toLowerCase()===scheduled.username.toLowerCase());
+        const chat=chatService.getActiveParticipants(scheduled.username);
+        if(chat.length){selected=scheduled;}
+      }
+    }
+    if(!selected){
+      for(const s of streams){
+        liveData=liveStreams.find(ls=>ls.user_login.toLowerCase()===s.username.toLowerCase());
+        const chat=chatService.getActiveParticipants(s.username);
+        if(chat.length){selected=s;break;}
+      }
+    }
+    if(selected && liveData){
+      const participants=chatService.getActiveParticipants(selected.username);
+      await discordService.sendAttendanceUpdate({username:selected.username, displayName:selected.displayName, viewerCount:liveData.viewer_count, gameName:liveData.game_name, chatParticipants:participants});
+    }
+  }
+}
+
+export const schedulerService = new SchedulerService();
+
+Server/storage.ts
+
+import { PrismaClient } from '@prisma/client';
+
+export const prisma = new PrismaClient();
+
+export const storage = {
+  // Streams
+  async getStreams() {
+    return await prisma.stream.findMany();
+  },
+  async updateStream(id: number, data: any) {
+    return await prisma.stream.update({ where: { id }, data });
+  },
+
+  // Chat participants
+  async upsertChatParticipant({ streamUsername, chatUsername, messageCount }: { streamUsername: string; chatUsername: string; messageCount: number }) {
+    return await prisma.chatParticipant.upsert({
+      where: { streamUsername_chatUsername: { streamUsername, chatUsername } },
+      update: { messageCount: { increment: messageCount } },
+      create: { streamUsername, chatUsername, messageCount },
+    });
+  },
+
+  async getActiveTimeSlots() {
+    return await prisma.timeSlot.findMany({ where: { isActive: true } });
+  },
+
+  // Settings
+  async getSetting(key: string) {
+    return await prisma.setting.findUnique({ where: { key } });
+  },
+
+  // Attendance
+  async recordAttendanceMentions(usernames: string[], streamUsername: string, displayName: string) {
+    for (const username of usernames) {
+      await prisma.attendance.create({
+        data: { streamUsername, displayName, username },
+      });
+    }
+  },
+
+  // Discord messages
+  async createDiscordMessage(data: { streamUsername: string; messageContent: string; success: boolean; errorMessage: string | null }) {
+    return await prisma.discordMessage.create({ data });
+  },
+
+  // Activity logs
+  async createActivityLog(data: { type: string; message: string }) {
+    return await prisma.activityLog.create({ data });
+  },
+};
+
+Prisma schema example
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Stream {
+  id           Int     @id @default(autoincrement())
+  username     String  @unique
+  displayName  String
+  isLive       Boolean @default(false)
+  viewerCount  Int     @default(0)
+  gameName     String?
+  title        String?
+}
+
+model ChatParticipant {
+  id            Int    @id @default(autoincrement())
+  streamUsername String
+  chatUsername  String
+  messageCount  Int    @default(0)
+
+  @@unique([streamUsername, chatUsername])
+}
+
+model TimeSlot {
+  id             Int    @id @default(autoincrement())
+  streamUsername String
+  streamDisplayName String
+  dayOfWeek      Int
+  startTime      String
+  duration       Int
+  isActive       Boolean @default(true)
+}
+
+model Setting {
+  id    Int    @id @default(autoincrement())
+  key   String @unique
+  value String?
+}
+
+model Attendance {
+  id           Int    @id @default(autoincrement())
+  streamUsername String
+  displayName  String
+  username     String
+  createdAt    DateTime @default(now())
+}
+
+model DiscordMessage {
+  id            Int      @id @default(autoincrement())
+  streamUsername String
+  messageContent String
+  success       Boolean
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+}
+
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  type      String
+  message   String
+  createdAt DateTime @default(now())
+}
+
+Dashboard Page - dashboard
+
+import { useQuery } from "@tanstack/react-query";
+import { getQueryFn } from "@/lib/queryClient";
+
+export default function Dashboard() {
+  const { data: streams } = useQuery(["/api/streams"], getQueryFn({ on401: "returnNull" }));
+
+  const totalLive = streams?.filter((s: any) => s.isLive).length ?? 0;
+
+  return (
+    <div className="p-6 flex-1">
+      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-4 bg-white dark:bg-slate-800 rounded shadow">
+          <h2 className="text-lg font-semibold">Total Streams</h2>
+          <p className="text-2xl">{streams?.length ?? 0}</p>
+        </div>
+        <div className="p-4 bg-white dark:bg-slate-800 rounded shadow">
+          <h2 className="text-lg font-semibold">Live Now</h2>
+          <p className="text-2xl">{totalLive}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Streams Page - streams.txt
+
+import { useQuery } from "@tanstack/react-query";
+import { getQueryFn } from "@/lib/queryClient";
+
+export default function Streams() {
+  const { data: streams } = useQuery(["/api/streams"], getQueryFn({ on401: "returnNull" }));
+
+  return (
+    <div className="p-6 flex-1">
+      <h1 className="text-2xl font-bold mb-4">Twitch Streams</h1>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr>
+            <th className="border p-2">Username</th>
+            <th className="border p-2">Title</th>
+            <th className="border p-2">Game</th>
+            <th className="border p-2">Viewers</th>
+            <th className="border p-2">Live</th>
+          </tr>
+        </thead>
+        <tbody>
+          {streams?.map((s: any) => (
+            <tr key={s.id} className="hover:bg-slate-100 dark:hover:bg-slate-700">
+              <td className="border p-2">{s.username}</td>
+              <td className="border p-2">{s.title}</td>
+              <td className="border p-2">{s.gameName}</td>
+              <td className="border p-2">{s.viewerCount}</td>
+              <td className="border p-2">{s.isLive ? "✅" : "❌"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+Discord page - discord.tsx
+
+import { useQuery } from "@tanstack/react-query";
+import { getQueryFn } from "@/lib/queryClient";
+
+export default function Discord() {
+  const { data: settings } = useQuery(["/api/settings"], getQueryFn({ on401: "returnNull" }));
+
+  return (
+    <div className="p-6 flex-1">
+      <h1 className="text-2xl font-bold mb-4">Discord Integration</h1>
+      <div className="space-y-2">
+        <p>
+          <strong>Webhook URL:</strong> {settings?.discord_webhook_url || "Not set"}
+        </p>
+        <p>
+          <strong>Attendance Webhook:</strong> {settings?.attendance_webhook_url || "Not set"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+Logs page - logs.tsx
+
+import { useQuery } from "@tanstack/react-query";
+import { getQueryFn } from "@/lib/queryClient";
+
+export default function Logs() {
+  const { data: logs } = useQuery(["/api/logs"], getQueryFn({ on401: "returnNull" }));
+
+  return (
+    <div className="p-6 flex-1">
+      <h1 className="text-2xl font-bold mb-4">Activity Logs</h1>
+      <ul className="space-y-1">
+        {logs?.map((log: any) => (
+          <li key={log.id} className="border-b py-1">
+            <span className="font-semibold">{log.type}</span>: {log.message}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+Attendance page - attendance.tsx
+
+import { useQuery } from "@tanstack/react-query";
+import { getQueryFn } from "@/lib/queryClient";
+
+export default function Attendance() {
+  const { data: attendance } = useQuery(["/api/attendance"], getQueryFn({ on401: "returnNull" }));
+
+  return (
+    <div className="p-6 flex-1">
+      <h1 className="text-2xl font-bold mb-4">Raid Train Attendance</h1>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr>
+            <th className="border p-2">Streamer</th>
+            <th className="border p-2">Participants</th>
+            <th className="border p-2">Last Update</th>
+          </tr>
+        </thead>
+        <tbody>
+          {attendance?.map((a: any) => (
+            <tr key={a.id} className="hover:bg-slate-100 dark:hover:bg-slate-700">
+              <td className="border p-2">{a.displayName}</td>
+              <td className="border p-2">{a.chatParticipants.join(", ")}</td>
+              <td className="border p-2">{new Date(a.updatedAt).toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+Users page - users.tsx
+
+import { useQuery } from "@tanstack/react-query";
+import { getQueryFn } from "@/lib/queryClient";
+
+export default function Users() {
+  const { data: users } = useQuery(["/api/users"], getQueryFn({ on401: "returnNull" }));
+
+  return (
+    <div className="p-6 flex-1">
+      <h1 className="text-2xl font-bold mb-4">Trusted Users</h1>
+      <ul className="space-y-1">
+        {users?.map((user: any) => (
+          <li key={user.id}>
+            {user.username} ({user.role})
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+Time Slots Page - time-slots.tsx
+
+import { useQuery } from "@tanstack/react-query";
+import { getQueryFn } from "@/lib/queryClient";
+
+export default function TimeSlots() {
+  const { data: slots } = useQuery(["/api/time-slots"], getQueryFn({ on401: "returnNull" }));
+
+  return (
+    <div className="p-6 flex-1">
+      <h1 className="text-2xl font-bold mb-4">Time Slots</h1>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr>
+            <th className="border p-2">Streamer</th>
+            <th className="border p-2">Day</th>
+            <th className="border p-2">Start</th>
+            <th className="border p-2">Duration (min)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {slots?.map((s: any) => (
+            <tr key={s.id} className="hover:bg-slate-100 dark:hover:bg-slate-700">
+              <td className="border p-2">{s.streamDisplayName}</td>
+              <td className="border p-2">{s.dayOfWeek}</td>
+              <td className="border p-2">{s.startTime}</td>
+              <td className="border p-2">{s.duration}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+Settings page - settings.tsx
+
+import { useQuery } from "@tanstack/react-query";
+import { getQueryFn } from "@/lib/queryClient";
+
+export default function Settings() {
+  const { data: settings } = useQuery(["/api/settings"], getQueryFn({ on401: "returnNull" }));
+
+  return (
+    <div className="p-6 flex-1">
+      <h1 className="text-2xl font-bold mb-4">Settings</h1>
+      <div className="space-y-2">
+        <p>
+          <strong>Discord Webhook:</strong> {settings?.discord_webhook_url || "Not set"}
+        </p>
+        <p>
+          <strong>Attendance Webhook:</strong> {settings?.attendance_webhook_url || "Not set"}
+        </p>
+        <p>
+          <strong>Notifications Enabled:</strong> {settings?.notifications_enabled || "false"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+Page not found - not-found.tsx
+
+export default function NotFound() {
+  return (
+    <div className="p-6 flex-1 text-center">
+      <h1 className="text-3xl font-bold">404</h1>
+      <p>Page not found.</p>
+    </div>
+  );
+}
+
+Server/index.ts - Main API Server
+
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import { schedulerService } from "./services/scheduler";
+import { chatService } from "./services/chat";
+import { storage } from "./storage";
+import { createDiscordService } from "./services/discord";
+import { twitchService } from "./services/twitch";
+
+const app = express();
+app.use(cors({ origin: true, credentials: true }));
+app.use(cookieParser());
+app.use(express.json());
+
+const PORT = process.env.PORT || 5000;
+
+// -------------------- Streams --------------------
+app.get("/api/streams", async (req, res) => {
+  try {
+    const streams = await storage.getStreams();
+    res.json(streams);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch streams" });
+  }
+});
+
+// -------------------- Attendance --------------------
+app.get("/api/attendance", async (req, res) => {
+  try {
+    const records = await storage.getAttendanceRecords();
+    res.json(records);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch attendance" });
+  }
+});
+
+// -------------------- Users --------------------
+app.get("/api/users", async (req, res) => {
+  try {
+    const users = await storage.getUsers();
+    res.json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
+// -------------------- Time Slots --------------------
+app.get("/api/time-slots", async (req, res) => {
+  try {
+    const slots = await storage.getTimeSlots();
+    res.json(slots);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch time slots" });
+  }
+});
+
+// -------------------- Settings --------------------
+app.get("/api/settings", async (req, res) => {
+  try {
+    const settings = {
+      discord_webhook_url: (await storage.getSetting("discord_webhook_url"))?.value || "",
+      attendance_webhook_url: (await storage.getSetting("attendance_webhook_url"))?.value || "",
+      notifications_enabled: (await storage.getSetting("notifications_enabled"))?.value || "false",
+      current_raid_streamer: (await storage.getSetting("current_raid_streamer"))?.value || "",
+    };
+    res.json(settings);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch settings" });
+  }
+});
+
+// -------------------- Logs --------------------
+app.get("/api/logs", async (req, res) => {
+  try {
+    const logs = await storage.getActivityLogs();
+    res.json(logs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch logs" });
+  }
+});
+
+// -------------------- Manual Actions --------------------
+app.post("/api/attendance/force", async (req, res) => {
+  try {
+    await schedulerService.forceAttendanceUpdate();
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to send attendance update" });
+  }
+});
+
+app.post("/api/shutdown", async (req, res) => {
+  try {
+    const success = await schedulerService.manualShutdown();
+    res.json({ success });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to shutdown raid train" });
+  }
+});
+
+// -------------------- Start Services --------------------
+(async () => {
+  try {
+    await schedulerService.start();
+    await chatService.start();
+
+    app.listen(PORT, () => {
+      console.log(`✅ Server running on http://localhost:${PORT}`);
+    });
+  } catch (err) {
+    console.error("Failed to start services:", err);
+  }
+})();
+
+Server/Storage.ts
+
+import { PrismaClient } from '@prisma/client';
+
+export const prisma = new PrismaClient();
+
+export const storage = {
+  async getStreams() {
+    return prisma.stream.findMany();
+  },
+  async updateStream(id: number, data: any) {
+    return prisma.stream.update({ where: { id }, data });
+  },
+  async upsertChatParticipant({ streamUsername, chatUsername, messageCount }: any) {
+    return prisma.chatParticipant.upsert({
+      where: { streamUsername_chatUsername: { streamUsername, chatUsername } },
+      update: { messageCount: { increment: messageCount } },
+      create: { streamUsername, chatUsername, messageCount },
+    });
+  },
+  async recordAttendanceMentions(usernames: string[], streamUsername: string, displayName: string) {
+    return prisma.attendance.createMany({
+      data: usernames.map(u => ({
+        streamUsername,
+        displayName,
+        chatUsername: u,
+      })),
+    });
+  },
+  async getActiveTimeSlots() {
+    return prisma.timeSlot.findMany({ where: { isActive: true } });
+  },
+  async createActivityLog(log: { type: string; message: string }) {
+    return prisma.activityLog.create({ data: log });
+  },
+  async createDiscordMessage(msg: { streamUsername: string; messageContent: string; success: boolean; errorMessage: string | null }) {
+    return prisma.discordMessage.create({ data: msg });
+  },
+  async getSetting(key: string) {
+    return prisma.setting.findUnique({ where: { key } });
+  },
+};
+
+server/services/twitch.ts
+
+import axios from 'axios';
+
+const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID!;
+const TWITCH_ACCESS_TOKEN = process.env.TWITCH_ACCESS_TOKEN!;
+
+export const twitchService = {
+  async getMultipleStreamsData(usernames: string[]) {
+    if (!usernames.length) return [];
+    const loginQuery = usernames.map(u => `user_login=${u}`).join('&');
+    const url = `https://api.twitch.tv/helix/streams?${loginQuery}`;
+    const { data } = await axios.get(url, {
+      headers: { 'Client-ID': TWITCH_CLIENT_ID, Authorization: `Bearer ${TWITCH_ACCESS_TOKEN}` },
+    });
+    return data.data;
+  },
+};
+
+Server/services/discord.ts
+
+import axios from 'axios';
+
+export interface DiscordWebhookPayload {
+  content: string;
+  username?: string;
+}
+
+export class DiscordService {
+  constructor(private webhookUrl: string, private attendanceWebhookUrl?: string) {}
+
+  async testWebhook(): Promise<boolean> {
+    if (!this.webhookUrl) throw new Error('Discord webhook URL not configured');
+    try {
+      await axios.post(this.webhookUrl, { content: '✅ Test message', username: 'TwitchCord' });
+      return true;
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  }
+
+  async sendAttendanceUpdate(data: { username: string; displayName: string; viewerCount: number; gameName: string; chatParticipants: string[] }) {
+    if (!this.attendanceWebhookUrl) return false;
+    const payload: DiscordWebhookPayload = {
+      content: `🕒 Attendance for ${data.displayName}: ${data.chatParticipants.length} active users, ${data.viewerCount} viewers, playing ${data.gameName}`,
+      username: 'TwitchCord Attendance',
+    };
+    try {
+      await axios.post(this.attendanceWebhookUrl, payload);
+      return true;
+    } catch (err) {
+      console.error('Discord attendance error:', err);
+      return false;
+    }
+  }
+
+  async sendShutdownMessage() {
+    if (!this.webhookUrl) return false;
+    try {
+      await axios.post(this.webhookUrl, { content: '🔴 Manual raid train shutdown', username: 'TwitchCord' });
+      return true;
+    } catch (err) {
+      console.error('Discord shutdown error:', err);
+      return false;
+    }
+  }
+}
+
+export const createDiscordService = (webhookUrl: string, attendanceWebhookUrl?: string) =>
+  new DiscordService(webhookUrl, attendanceWebhookUrl);
+
+server/services/chat.ts
+
+import tmi from 'tmi.js';
+import { storage } from '../storage';
+
+export class TwitchChatService {
+  private client: tmi.Client | null = null;
+  private connectedChannels = new Set<string>();
+  private chatParticipants = new Map<string, Set<string>>();
+
+  constructor() { this.initializeClient(); }
+
+  private initializeClient() {
+    if (!process.env.TWITCH_CLIENT_ID) return console.log('⚠️ No Twitch credentials');
+    this.client = new tmi.Client({
+      options: { debug: false },
+      connection: { reconnect: true, secure: true },
+      identity: { username: 'raid_train_bot', password: `oauth:${process.env.TWITCH_ACCESS_TOKEN}` },
+    });
+    this.setupEventHandlers();
+  }
+
+  private setupEventHandlers() {
+    if (!this.client) return;
+    this.client.on('connected', () => console.log('✅ Chat bot connected'));
+    this.client.on('disconnected', () => console.log('❌ Chat bot disconnected'));
+    this.client.on('join', (channel, username, self) => !self && this.trackParticipant(channel.replace('#', ''), username, 'join'));
+    this.client.on('part', (channel, username, self) => !self && this.trackParticipant(channel.replace('#', ''), username, 'part'));
+    this.client.on('message', (channel, tags, message, self) => !self && this.trackParticipant(channel.replace('#', ''), tags.username || 'unknown', 'message'));
+  }
+
+  private async trackParticipant(streamUsername: string, chatUsername: string, action: 'join'|'message'|'part') {
+    if (!this.chatParticipants.has(streamUsername)) this.chatParticipants.set(streamUsername, new Set());
+    if (action !== 'part') this.chatParticipants.get(streamUsername)?.add(chatUsername);
+    await storage.upsertChatParticipant({ streamUsername, chatUsername, messageCount: action==='message'?1:0 });
+    console.log(`👤 ${chatUsername} ${action} in ${streamUsername}'s chat`);
+  }
+
+  async connectToStream(username: string) { if (this.client && !this.connectedChannels.has(username)) { await this.client.join(`#${username}`); this.connectedChannels.add(username); } }
+  async disconnectFromStream(username: string) { if (this.client && this.connectedChannels.has(username)) { await this.client.part(`#${username}`); this.connectedChannels.delete(username); this.chatParticipants.delete(username); } }
+  getActiveParticipants(streamUsername: string): string[] { return Array.from(this.chatParticipants.get(streamUsername) || []); }
+
+  async start() { if (!this.client) return false; await this.client.connect(); const streams = await storage.getStreams(); for (const s of streams) if (s.isLive) await this.connectToStream(s.username); return true; }
+  async stop() { if (!this.client) return; await this.client.disconnect(); this.connectedChannels.clear(); this.chatParticipants.clear(); }
+  async syncWithLiveStreams(liveStreams: string[]) { for (const username of liveStreams) await this.connectToStream(username); for (const connected of this.connectedChannels) if (!liveStreams.includes(connected)) await this.disconnectFromStream(connected); }
+}
+
+export const chatService = new TwitchChatService();
+
+server/services/scheduler.ts
+
+import cron, { ScheduledTask } from 'node-cron';
+import { storage } from '../storage';
+import { twitchService } from './twitch';
+import { createDiscordService } from './discord';
+import { chatService } from './chat';
+
+export class SchedulerService {
+  private task: ScheduledTask|null = null;
+  private isRunning = false;
+  private attendanceTask: ScheduledTask|null = null;
+  private currentTimeSlot: any = null;
+
+  async start() {
+    if (this.isRunning) return;
+    this.task = cron.schedule('* * * * *', async () => { await this.checkTimeSlots(); });
+    this.task.start();
+    this.isRunning = true;
+    await chatService.start();
+    console.log('Scheduler started');
+  }
+
+  async stop() {
+    this.task?.stop(); this.task=null;
+    this.attendanceTask?.stop(); this.attendanceTask=null;
+    this.isRunning=false;
+    console.log('Scheduler stopped');
+  }
+
+  private timeToMinutes(timeStr: string) { const [h,m]=timeStr.split(':').map(Number); return h*60+m; }
+  private addMinutesToTime(timeStr: string, minutes: number){ const [h,m]=timeStr.split(':').map(Number); const total=h*60+m+minutes; return `${Math.floor(total/60)%24}:${total%60}`; }
+  private isTimeInRange(current:string,start:string,end:string){ const c=this.timeToMinutes(current),s=this.timeToMinutes(start),e=this.timeToMinutes(end); return s<=e?c>=s&&c<=e:c>=s||c<=e; }
+
+  async checkTimeSlots() {
+    try {
+      const activeTimeSlots = await storage.getActiveTimeSlots();
+      if (!activeTimeSlots.length) { this.attendanceTask?.stop(); this.attendanceTask=null; this.currentTimeSlot=null; return; }
+
+      const now = new Date(); const currentEST = now.toLocaleTimeString('en-US',{hour12:false,timeZone:'America/New_York'}).slice(0,5); const day = now.getDay();
+      let activeSlot = activeTimeSlots.find(s=>s.dayOfWeek===day && this.isTimeInRange(currentEST,s.startTime,this.addMinutesToTime(s.startTime,s.duration)));
+      if (activeSlot && (!this.currentTimeSlot || this.currentTimeSlot.id!==activeSlot.id)) {
+        this.currentTimeSlot=activeSlot;
+        this.attendanceTask?.stop();
+        this.attendanceTask=cron.schedule('*/25 * * * *', async()=>{ await this.forceAttendanceUpdate(); });
+        this.attendanceTask.start();
+        console.log(`Time slot started for ${activeSlot.streamDisplayName}`);
+      } else if (!activeSlot) { this.attendanceTask?.stop(); this.attendanceTask=null; this.currentTimeSlot=null; console.log('Time slot ended'); }
+    } catch(e){ console.error('Error checking time slots:',e);}
+  }
+
+  async forceAttendanceUpdate() {
+    const streams = await storage.getStreams();
+    if (!streams.length) return;
+    const liveStreams = await twitchService.getMultipleStreamsData(streams.map(s=>s.username));
+    const webhookSetting = await storage.getSetting('discord_webhook_url');
+    const attendanceSetting = await storage.getSetting('attendance_webhook_url');
+    if(!webhookSetting?.value && !attendanceSetting?.value) return;
+    const discordService=createDiscordService(webhookSetting?.value||'',attendanceSetting?.value);
+
+    // Use first live streamer with chat participants
+    for (const stream of streams) {
+      const liveData=liveStreams.find(ls=>ls.user_login.toLowerCase()===stream.username.toLowerCase());
+      if(!liveData) continue;
+      const participants=chatService.getActiveParticipants(stream.username);
+      if(!participants.length) continue;
+      await discordService.sendAttendanceUpdate({
+        username: stream.username,
+        displayName: stream.displayName,
+        viewerCount: liveData.viewer_count,
+        gameName: liveData.game_name,
+        chatParticipants: participants
+      });
+      console.log(`Attendance sent for ${stream.displayName}`);
+      break;
+    }
+  }
+}
+
+export const schedulerService = new SchedulerService();

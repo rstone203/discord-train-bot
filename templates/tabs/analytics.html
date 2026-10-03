@@ -1,0 +1,118 @@
+<div class="row">
+    <!-- Train Statistics Card -->
+    <div class="col-lg-8 mb-4">
+        <div class="dashboard-card">
+            <h5><i class="fas fa-chart-line"></i> Train Session Analytics</h5>
+            <hr>
+            
+            <canvas id="trainChart" height="80"></canvas>
+        </div>
+    </div>
+    
+    <!-- Quick Stats -->
+    <div class="col-lg-4 mb-4">
+        <div class="dashboard-card">
+            <h5><i class="fas fa-chart-pie"></i> Quick Stats</h5>
+            <hr>
+            
+            <div class="mb-3">
+                <p class="mb-1 text-muted">Total Trains</p>
+                <h3 class="text-primary">0</h3>
+            </div>
+            
+            <div class="mb-3">
+                <p class="mb-1 text-muted">Avg Participants</p>
+                <h3 class="text-success">0.0</h3>
+            </div>
+            
+            <div class="mb-3">
+                <p class="mb-1 text-muted">Peak Day</p>
+                <h3 class="text-info">--</h3>
+            </div>
+            
+            <div>
+                <p class="mb-1 text-muted">Engagement Rate</p>
+                <h3 class="text-warning">--%</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Participants -->
+<div class="row">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <h5><i class="fas fa-trophy"></i> Top Participants</h5>
+            <hr>
+            
+            <div class="table-responsive">
+                <table class="table table-dark table-hover">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>User</th>
+                            <th>Trains Joined</th>
+                            <th>Attendance Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody id="top-participants-tbody">
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">
+                                No participation data available yet
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let trainChart = null;
+
+async function loadAnalyticsData() {
+    const ctx = document.getElementById('trainChart').getContext('2d');
+    
+    if (trainChart) {
+        trainChart.destroy();
+    }
+    
+    trainChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            datasets: [{
+                label: 'Trains This Week',
+                data: [0, 0, 0, 0, 0, 0, 0],
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    labels: { color: '#e4e4e4' }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: '#e4e4e4' },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                },
+                x: {
+                    ticks: { color: '#e4e4e4' },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                }
+            }
+        }
+    });
+}
+
+document.getElementById('analytics-tab').addEventListener('shown.bs.tab', loadAnalyticsData);
+</script>

@@ -1,0 +1,10 @@
+---
+name: Discord interaction 3-second ack window
+description: "Interaction failed" / Unknown interaction (10062) errors caused by doing DB or other slow work before acking a component/slash interaction.
+---
+
+Discord invalidates an interaction token if the bot doesn't call `interaction.response.*` within ~3 seconds of receiving it. Any handler (button/select callback, slash command) that does a blocking `DatabaseSession()` query, or even a slow `run_db`/async DB call, *before* its first `interaction.response.send_message`/`edit_message` risks racing that window. When it loses, the user sees a generic "interaction failed" in their client and the bot logs `discord.errors.NotFound: 404 Unknown interaction (10062)`.
+
+**Why:** Found in `cogs/train_participant_commands.py`'s waitlist panel (`WaitlistPanelView._open_picker`, `_WaitlistSlotSelect._on_select`, `_MyWaitlistsView._on_leave`/`_schedule_name`) — all ran a synchronous `with DatabaseSession()` query before responding. This is a distinct failure mode from the event-loop-blocking bug (see `blocking-db-in-async-loops.md`): even a fully non-blocking, fast DB call can still exceed 3 seconds under DB latency/cold-start, and the fix must address the interaction ack timing itself, not just event-loop blocking.
+
+**How to apply:** In any interaction callback that does DB/network work before its first response, call `await interaction.response.defer(ephemeral=..., thinking=True)` (for a component that will send a new message) or `await interaction.response.defer()` (for one that will edit the existing message) as the very first line, then do the DB work (via `run_db`, never blocking `DatabaseSession`), then respond via `interaction.followup.send(...)` or `interaction.edit_original_response(...)` instead of `interaction.response.send_message`/`edit_message` (which are no longer valid once deferred). The follow-up window is 15 minutes, not 3 seconds, so this eliminates the race entirely. When auditing, grep interaction-handling classes for `with DatabaseSession()` or other pre-response blocking work — the same pattern recurs across button/select callbacks in this codebase.

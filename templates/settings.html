@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Train Bot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-cog"></i> Bot Settings</h2>
+    <button class="btn btn-success" onclick="saveSettings()">
+        <i class="fas fa-save"></i> Save Changes
+    </button>
+</div>
+
+<div class="row">
+    <!-- General Settings -->
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-sliders-h"></i> General Configuration
+                </h6>
+            </div>
+            <div class="card-body">
+                <form id="settingsForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Command Prefix</label>
+                                <input type="text" class="form-control" id="commandPrefix" 
+                                       value="{{ settings.command_prefix }}" maxlength="5">
+                                <div class="form-text">The prefix used for bot commands (e.g., !, $, &)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Authorized Role</label>
+                                <input type="text" class="form-control" id="authorizedRole" 
+                                       value="{{ settings.authorized_role }}">
+                                <div class="form-text">Role name that can control the bot</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h6 class="text-primary mb-3 mt-4">
+                        <i class="fas fa-share-alt"></i> Legacy Forwarding Settings
+                    </h6>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Source Channel ID</label>
+                                <input type="text" class="form-control" id="sourceChannelId" 
+                                       value="{{ settings.source_channel_id }}">
+                                <div class="form-text">Channel ID where messages originate</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Target Channel ID</label>
+                                <input type="text" class="form-control" id="targetChannelId" 
+                                       value="{{ settings.target_channel_id }}">
+                                <div class="form-text">Channel ID where messages are forwarded</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="legacyForwardingActive" 
+                                   {{ 'checked' if settings.legacy_forwarding_active }}>
+                            <label class="form-check-label" for="legacyForwardingActive">
+                                Enable Legacy Forwarding
+                            </label>
+                            <div class="form-text">
+                                Controls the built-in forwarding system (separate from database configs)
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Note:</strong> Changes to these settings require a bot restart to take effect. 
+                    Database forwarding configurations are managed separately in the Forwarding section.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trusted Users -->
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-users"></i> Trusted Users
+                </h6>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addTrustedUserModal">
+                    <i class="fas fa-plus"></i> Add
+                </button>
+            </div>
+            <div class="card-body">
+                {% if trusted_users %}
+                    <div class="list-group list-group-flush">
+                        {% for user in trusted_users %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <div>
+                                <strong>{{ user.username or 'Unknown' }}</strong><br>
+                                <small class="text-muted">ID: {{ user.user_id }}</small>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger" 
+                                    onclick="removeTrustedUser({{ user.id }})">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-user-slash fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No trusted users configured</p>
+                        <small class="text-muted">Trusted users have owner-level permissions</small>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Bot Information -->
+        <div class="card shadow">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-info-circle"></i> Bot Information
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <i class="fas fa-robot fa-3x text-primary mb-2"></i>
+                    <h6>Discord Bot Dashboard</h6>
+                </div>
+                
+                <div class="small">
+                    <div class="row mb-2">
+                        <div class="col-6"><strong>Version:</strong></div>
+                        <div class="col-6">2.0.0</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6"><strong>Framework:</strong></div>
+                        <div class="col-6">Discord.py</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6"><strong>Database:</strong></div>
+                        <div class="col-6">PostgreSQL</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6"><strong>Host:</strong></div>
+                        <div class="col-6">Replit</div>
+                    </div>
+                </div>
+
+                <hr>
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-warning btn-sm" onclick="restartBot()">
+                        <i class="fas fa-redo"></i> Restart Bot
+                    </button>
+                    <button class="btn btn-outline-info btn-sm" onclick="syncCommands()">
+                        <i class="fas fa-sync"></i> Sync Commands
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Trusted User Modal -->
+<div class="modal fade" id="addTrustedUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-plus"></i> Add Trusted User
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addTrustedUserForm">
+                    <div class="mb-3">
+                        <label class="form-label">User ID</label>
+                        <input type="text" class="form-control" id="trustedUserId" 
+                               placeholder="Discord User ID" required>
+                        <div class="form-text">
+                            Enter the Discord user ID (right-click user → Copy ID)
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Username (Optional)</label>
+                        <input type="text" class="form-control" id="trustedUsername" 
+                               placeholder="Display name">
+                        <div class="form-text">
+                            Optional display name for easier identification
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addTrustedUser()">
+                    <i class="fas fa-plus"></i> Add User
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function saveSettings() {
+    const settings = {
+        command_prefix: document.getElementById('commandPrefix').value,
+        authorized_role: document.getElementById('authorizedRole').value,
+        source_channel_id: document.getElementById('sourceChannelId').value,
+        target_channel_id: document.getElementById('targetChannelId').value,
+        legacy_forwarding_active: document.getElementById('legacyForwardingActive').checked
+    };
+    
+    // Note: This would require an API endpoint to actually save settings
+    alert('Settings saved! Note: Some changes require a bot restart to take effect.');
+}
+
+function addTrustedUser() {
+    const userId = document.getElementById('trustedUserId').value;
+    const username = document.getElementById('trustedUsername').value;
+    
+    if (!userId) {
+        alert('Please enter a user ID');
+        return;
+    }
+    
+    // Note: This would require an API endpoint to add trusted users
+    alert('Feature not yet implemented - trusted user management coming soon!');
+}
+
+function removeTrustedUser(userId) {
+    if (confirm('Remove this trusted user?')) {
+        // Note: This would require an API endpoint to remove trusted users
+        alert('Feature not yet implemented - trusted user management coming soon!');
+    }
+}
+
+function restartBot() {
+    if (confirm('Are you sure you want to restart the bot? This will cause a brief disconnection.')) {
+        alert('Bot restart feature not yet implemented');
+    }
+}
+
+function syncCommands() {
+    alert('Command sync feature not yet implemented');
+}
+</script>
+{% endblock %}

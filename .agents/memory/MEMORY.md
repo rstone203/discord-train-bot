@@ -1,0 +1,9 @@
+- [Dev vs prod databases](dev-prod-db-split.md) — the published Discord-bot deployment uses a SEPARATE production database from the editor; DatabaseSession/editor DB edits do NOT reach the live bot.
+- [Discord interaction 3s window](discord-interaction-3s-window.md) — "interaction failed"/Unknown interaction (10062) means slow work happened before the first response; defer() then followup/edit_original_response instead.
+- [Twitch device OAuth scopes](twitch-device-oauth-scopes.md) — Twitch's `/oauth2/device` endpoint needs `scopes` (plural); sending `scope` silently yields tokens with no chat:read.
+- [Verifying live bot code version](verify-deployed-code-version.md) — confirm runtime behavior is actually deployed via prod-log string fingerprinting + twitch_sync 6h cadence; editor code can be correct while live bot is stale.
+- [Waitlist promotion model](waitlist-promotion-model.md) — the open-seat detector is the SINGLE owner of all slot-waitlist promotions (consent-based DM offer); seat-freeing paths must NOT auto-promote.
+- [Beta feature flag pattern](beta-feature-flag-pattern.md) — a new per-guild beta flag touches 5+ files (models.py, database.py additive columns, server_permissions.py, server_permissions_commands.py); checklist to avoid missing a spot.
+- [Stripe connector settings fields](stripe-connector-settings-fields.md) — raw connector API uses `secret`/`publishable`, not `secret_key`/`publishable_key`; verify field names via listConnections before assuming.
+- [Blocking DatabaseSession in async loops](blocking-db-in-async-loops.md) — blocking DB session in async code stalls the event loop, causing bot-offline + correlated Twitch timeouts; grep whole codebase, not just one file.
+- [One-time migration flags](one-time-migration-flags.md) — gate expensive per-guild startup loops behind a SystemSettings done-flag instead of re-running every restart; matters more as guild count scales.

@@ -1,0 +1,106 @@
+from replit import db
+
+# -------------------------------
+# CONFIGURATION
+# -------------------------------
+USERNAME = 'your_twitch_username'  # lowercase
+
+# -------------------------------
+# HELPER FUNCTIONS
+# -------------------------------
+def init_viewers():
+    """Initialize the viewers dictionary in Replit DB if not present"""
+    if 'attendance_viewers' not in db:
+        db['attendance_viewers'] = {}
+
+def get_viewers():
+    """Return the viewers dictionary"""
+    return db['attendance_viewers']
+
+def save_viewers(viewers):
+    """Save the viewers dictionary to Replit DB"""
+    db['attendance_viewers'] = viewers
+
+# -------------------------------
+# HANDLERS
+# -------------------------------
+def handle_join(event=None, username_override=None):
+    """
+    Call when a user joins chat.
+    """
+    viewers = get_viewers()
+    if username_override:
+        user = username_override.lower()
+    else:
+        user = event.source.split('!')[0].lower()
+
+    if user != USERNAME.lower() and user not in viewers:
+        viewers[user] = True  # just track presence
+        save_viewers(viewers)
+        print(f"{user} joined. Total viewers tracked: {len(viewers)}")
+
+def handle_part(event=None, username_override=None):
+    """
+    Call when a user leaves chat.
+    """
+    viewers = get_viewers()
+    if username_override:
+        user = username_override.lower()
+    else:
+        user = event.source.split('!')[0].lower()
+
+    if user in viewers:
+        viewers.pop(user)
+        save_viewers(viewers)
+        print(f"{user} left. Total viewers tracked: {len(viewers)}")
+
+# -------------------------------
+# SNAPSHOT / UTILITY FUNCTIONS
+# -------------------------------
+def get_current_viewers():
+    """Return a list of viewers currently in chat"""
+    return list(get_viewers().keys())
+
+def clear_viewers():
+    """Clear the viewers dictionary"""
+    db['attendance_viewers'] = {}
+    print("Attendance list cleared.")
+
+def store_snapshot(viewers_list):
+    """
+    Optional: store a snapshot historically in DB with timestamp.
+    Call this from your 25-minute snapshot routine.
+    """
+    import time
+    timestamp = int(time.time())
+    key = f"attendance_snapshot_{timestamp}"
+    db[key] = viewers_list
+    print(f"Snapshot stored with key: {key} ({len(viewers_list)} viewers)")
+
+def take_snapshot_and_clear():
+    """
+    Take a snapshot of current viewers, store it historically, then clear live list.
+    Returns the snapshot list.
+    """
+    viewers_list = get_current_viewers()
+    store_snapshot(viewers_list)
+    clear_viewers()
+    return viewers_list
+
+# -------------------------------
+# INITIALIZATION
+# -------------------------------
+init_viewers()
+
+# -------------------------------
+# EXAMPLE USAGE (Standalone Test)
+# -------------------------------
+if __name__ == "__main__":
+    print("Testing attendance tracker standalone...")
+    handle_join(username_override="user1")
+    handle_join(username_override="user2")
+    print("Current viewers:", get_current_viewers())
+    handle_part(username_override="user1")
+    print("Current viewers:", get_current_viewers())
+    snapshot = take_snapshot_and_clear()
+    print("Snapshot stored:", snapshot)

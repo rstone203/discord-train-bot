@@ -1,0 +1,66 @@
+import discord
+
+# Replace with your bot token (load from environment variable, e.g. os.environ["DISCORD_TOKEN"])
+TOKEN = "YOUR_BOT_TOKEN_HERE"
+
+# Set the source and target channel IDs
+SOURCE_CHANNEL_ID = 1398094211320119358  # Channel to copy messages FROM
+TARGET_CHANNEL_ID = 1183143967622168668  # Channel to send messages TO
+
+# Name of the role that is allowed to use commands
+AUTHORIZED_ROLE_NAME = "supervisor"
+
+# Optional: User ID override (e.g. you or the bot owner)
+AUTHORIZED_USER_IDS = {887354716751810560}  # Replace with your Discord user ID
+
+intents = discord.Intents.default()
+intents.message_content = True
+intents.guilds = True
+intents.members = True  # Needed to access member roles
+intents.messages = True
+
+client = discord.Client(intents=intents)
+
+bot_active = False
+
+@client.event
+async def on_ready():
+    print(f'✅ Logged in as {client.user}')
+
+@client.event
+async def on_message(message):
+    global bot_active
+
+    # Ignore bot messages
+    if message.author.bot:
+        return
+
+    content = message.content.lower()
+
+    # START / STOP command handling
+    if content in ['!start', '!stop']:
+        # Check if user has the authorized role
+        has_role = any(role.name == AUTHORIZED_ROLE_NAME for role in message.author.roles)
+        is_authorized_user = message.author.id in AUTHORIZED_USER_IDS
+
+        if not has_role and not is_authorized_user:
+            await message.channel.send(f'🚫 You must have the **{AUTHORIZED_ROLE_NAME}** role to do that.')
+            return
+
+        if content == '!start':
+            bot_active = True
+            await message.channel.send('✅ Bot activated. I will now forward messages.')
+            return
+
+        if content == '!stop':
+            bot_active = False
+            await message.channel.send('⛔ Bot deactivated. I will stop forwarding messages.')
+            return
+
+    # Forwarding logic (only if bot is active)
+    if bot_active and message.channel.id == SOURCE_CHANNEL_ID:
+        target_channel = client.get_channel(TARGET_CHANNEL_ID)
+        if target_channel:
+            await target_channel.send(f"**{message.author.display_name}:** {message.content}")
+
+client.run(TOKEN)

@@ -1,0 +1,113 @@
+<div class="dashboard-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5><i class="fas fa-share"></i> Message Forwarding Rules</h5>
+        <button class="btn btn-primary btn-sm" onclick="createForwardingRule()">
+            <i class="fas fa-plus"></i> Add Rule
+        </button>
+    </div>
+    <hr>
+    
+    <div class="table-responsive">
+        <table class="table table-dark table-hover">
+            <thead>
+                <tr>
+                    <th>Source Channel</th>
+                    <th>Target Channel</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="forwarding-tbody">
+                <tr>
+                    <td colspan="5" class="text-center">
+                        <div class="loading-spinner"></div> Loading forwarding rules...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// Version 4.0 - Light blue colors for dark mode visibility
+console.log('✅ Forwarding script loaded - Version 4.0 with light blue colors');
+
+async function loadForwardingRules() {
+    const tbody = document.getElementById('forwarding-tbody');
+    console.log('🔄 Loading forwarding rules with new blue colors...');
+    
+    try {
+        const response = await fetch('/api/forwarding?v=4&cache=' + Date.now());
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        
+        if (data.configs && data.configs.length > 0) {
+            tbody.innerHTML = data.configs.map(config => `
+                <tr>
+                    <td>
+                        <strong style="color: #60a5fa;">${config.source_guild_name || 'Unknown Server'}</strong><br>
+                        <small style="color: #93c5fd;">#${config.source_channel_name || 'unknown-channel'}</small>
+                    </td>
+                    <td>
+                        <strong style="color: #60a5fa;">${config.target_guild_name || 'Unknown Server'}</strong><br>
+                        <small style="color: #93c5fd;">#${config.target_channel_name || 'unknown-channel'}</small>
+                    </td>
+                    <td>
+                        <span class="badge ${config.is_active ? 'bg-success' : 'bg-secondary'}">
+                            ${config.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td><small class="text-muted">${config.created_at || 'N/A'}</small></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteForwardingRule(${config.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-muted">
+                        No forwarding rules configured. Use <code>/addforward</code> in Discord to set up forwarding.
+                    </td>
+                </tr>
+            `;
+        }
+        
+    } catch (error) {
+        console.error('Failed to load forwarding rules:', error);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading forwarding rules</td></tr>';
+    }
+}
+
+function createForwardingRule() {
+    alert('Use Discord command: /addforward #source-channel #target-channel');
+}
+
+async function deleteForwardingRule(configId) {
+    if (!confirm('Are you sure you want to delete this forwarding rule?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/forwarding/${configId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            loadForwardingRules();
+        } else {
+            alert('Failed to delete forwarding rule');
+        }
+    } catch (error) {
+        console.error('Error deleting forwarding rule:', error);
+        alert('Error deleting forwarding rule');
+    }
+}
+
+document.getElementById('forwarding-tab').addEventListener('shown.bs.tab', loadForwardingRules);
+</script>

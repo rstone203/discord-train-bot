@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+
+{% block title %}Forwarding Management - Train Bot{% endblock %}
+
+{% block extra_head %}
+<style>
+.config-card {
+    transition: all 0.3s ease;
+}
+.config-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.status-active {
+    border-left: 4px solid #28a745;
+}
+.status-inactive {
+    border-left: 4px solid #6c757d;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-share-alt"></i> Forwarding Management</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addForwardingModal">
+        <i class="fas fa-plus"></i> Add New Rule
+    </button>
+</div>
+
+<!-- Forwarding Statistics -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ configurations|selectattr('is_active')|list|length }}</h4>
+                        <p class="mb-0">Active Rules</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-secondary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ configurations|selectattr('is_active', 'equalto', false)|list|length }}</h4>
+                        <p class="mb-0">Inactive Rules</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-pause-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ configurations|length }}</h4>
+                        <p class="mb-0">Total Rules</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-list fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Forwarding Configurations -->
+<div class="row">
+    {% for config in configurations %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card config-card {{ 'status-active' if config.is_active else 'status-inactive' }}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span class="fw-bold">Rule #{{ config.id }}</span>
+                <div>
+                    {% if config.is_active %}
+                        <span class="badge bg-success">Active</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6 class="text-primary mb-1">
+                        <i class="fas fa-arrow-right"></i> Source
+                    </h6>
+                    <p class="mb-0 small text-monospace">
+                        {{ config.source_display }}
+                    </p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="text-success mb-1">
+                        <i class="fas fa-arrow-down"></i> Target
+                    </h6>
+                    <p class="mb-0 small text-monospace">
+                        {{ config.target_display }}
+                    </p>
+                </div>
+                
+                <div class="mb-3">
+                    <small class="text-muted">
+                        <i class="fas fa-clock"></i> Created: {{ config.created_at }}<br>
+                        <i class="fas fa-user"></i> By: {{ config.created_by }}
+                    </small>
+                </div>
+                
+                <div class="btn-group w-100" role="group">
+                    <button class="btn btn-sm btn-outline-primary" 
+                            onclick="toggleForwarding({{ config.id }})">
+                        <i class="fas fa-{{ 'pause' if config.is_active else 'play' }}"></i>
+                        {{ 'Disable' if config.is_active else 'Enable' }}
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" 
+                            onclick="deleteForwarding({{ config.id }})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No forwarding rules configured</h5>
+                <p class="text-muted">Create your first forwarding rule to start cross-server messaging.</p>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addForwardingModal">
+                    <i class="fas fa-plus"></i> Add Forwarding Rule
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Add Forwarding Modal -->
+<div class="modal fade" id="addForwardingModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus"></i> Add New Forwarding Rule
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addForwardingForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-arrow-right"></i> Source (Where messages come from)
+                            </h6>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Source Server</label>
+                                <select class="form-select" id="sourceGuild" name="source_guild_id" required>
+                                    <option value="">Select a server...</option>
+                                    {% for guild in available_guilds %}
+                                    <option value="{{ guild.id }}">{{ guild.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Source Channel</label>
+                                <select class="form-select" id="sourceChannel" name="source_channel_id" required disabled>
+                                    <option value="">Select a channel...</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6 class="text-success mb-3">
+                                <i class="fas fa-arrow-down"></i> Target (Where messages go to)
+                            </h6>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Target Server</label>
+                                <select class="form-select" id="targetGuild" name="target_guild_id" required>
+                                    <option value="">Select a server...</option>
+                                    {% for guild in available_guilds %}
+                                    <option value="{{ guild.id }}">{{ guild.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Target Channel</label>
+                                <select class="form-select" id="targetChannel" name="target_channel_id" required disabled>
+                                    <option value="">Select a channel...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Note:</strong> Messages from the source channel will be automatically forwarded to the target channel. 
+                        The bot must have read permissions in the source channel and send permissions in the target channel.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitForwarding()">
+                    <i class="fas fa-plus"></i> Create Rule
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Guild and channel data
+const guildChannels = {{ available_guilds|tojson }};
+
+// Update channel options when guild is selected
+document.getElementById('sourceGuild').addEventListener('change', function() {
+    updateChannelOptions('sourceChannel', this.value);
+});
+
+document.getElementById('targetGuild').addEventListener('change', function() {
+    updateChannelOptions('targetChannel', this.value);
+});
+
+function updateChannelOptions(channelSelectId, guildId) {
+    const channelSelect = document.getElementById(channelSelectId);
+    channelSelect.innerHTML = '<option value="">Select a channel...</option>';
+    
+    if (guildId) {
+        const guild = guildChannels.find(g => g.id == guildId);
+        if (guild && guild.channels) {
+            guild.channels.forEach(channel => {
+                const option = document.createElement('option');
+                option.value = channel.id;
+                option.textContent = '#' + channel.name;
+                channelSelect.appendChild(option);
+            });
+        }
+        channelSelect.disabled = false;
+    } else {
+        channelSelect.disabled = true;
+    }
+}
+
+function submitForwarding() {
+    const form = document.getElementById('addForwardingForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    
+    if (!data.source_guild_id || !data.source_channel_id || !data.target_guild_id || !data.target_channel_id) {
+        alert('Please fill in all fields');
+        return;
+    }
+    
+    makeRequest('/api/forwarding/add', 'POST', data)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + result.error);
+            }
+        })
+        .catch(error => {
+            alert('Error creating forwarding rule: ' + error);
+        });
+}
+
+function toggleForwarding(configId) {
+    fetch(`/api/forwarding/toggle/${configId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    })
+    .catch(error => {
+        alert('Error toggling forwarding: ' + error);
+        console.error('Toggle error:', error);
+    });
+}
+
+function deleteForwarding(configId) {
+    if (confirm('Are you sure you want to delete this forwarding rule? This action cannot be undone.')) {
+        fetch(`/api/forwarding/delete/${configId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + result.error);
+            }
+        })
+        .catch(error => {
+            alert('Error deleting forwarding rule: ' + error);
+            console.error('Delete error:', error);
+        });
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,171 @@
+<div class="row">
+    <!-- Quick Stats -->
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card">
+            <i class="fas fa-server fa-2x mb-2"></i>
+            <div class="stat-value" id="stat-guilds">--</div>
+            <div class="stat-label">Servers</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card">
+            <i class="fas fa-users fa-2x mb-2"></i>
+            <div class="stat-value" id="stat-users">--</div>
+            <div class="stat-label">Total Users</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card">
+            <i class="fas fa-calendar-check fa-2x mb-2"></i>
+            <div class="stat-value" id="stat-schedules">--</div>
+            <div class="stat-label">Active Trains</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card">
+            <i class="fas fa-clock fa-2x mb-2"></i>
+            <div class="stat-value" id="stat-uptime">--</div>
+            <div class="stat-label">Uptime</div>
+        </div>
+    </div>
+</div>
+
+<!-- Bot Status Card -->
+<div class="row mt-4">
+    <div class="col-lg-6 mb-4">
+        <div class="dashboard-card">
+            <h5><i class="fas fa-robot"></i> Bot Status</h5>
+            <hr>
+            <div class="row text-center">
+                <div class="col-6">
+                    <p class="mb-1 text-muted">Latency</p>
+                    <h4><span id="bot-latency">--</span>ms</h4>
+                </div>
+                <div class="col-6">
+                    <p class="mb-1 text-muted">Commands</p>
+                    <h4 id="bot-commands">--</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions Card -->
+    <div class="col-lg-6 mb-4">
+        <div class="dashboard-card">
+            <h5><i class="fas fa-bolt"></i> Quick Actions</h5>
+            <hr>
+            <div class="d-grid gap-2">
+                <button class="btn btn-primary" onclick="location.href='#schedules-tab'; document.getElementById('schedules-tab').click();">
+                    <i class="fas fa-calendar-plus"></i> Manage Schedules
+                </button>
+                <button class="btn btn-primary" onclick="location.href='#liveroles-tab'; document.getElementById('liveroles-tab').click();">
+                    <i class="fas fa-video"></i> Configure Live Roles
+                </button>
+                <button class="btn btn-primary" onclick="location.href='#analytics-tab'; document.getElementById('analytics-tab').click();">
+                    <i class="fas fa-chart-bar"></i> View Analytics
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Server List -->
+<div class="row">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <h5><i class="fas fa-server"></i> Connected Servers</h5>
+            <hr>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover" id="servers-table">
+                    <thead>
+                        <tr>
+                            <th>Server Name</th>
+                            <th>Members</th>
+                            <th>Active Schedules</th>
+                            <th>Live Tracking</th>
+                        </tr>
+                    </thead>
+                    <tbody id="servers-tbody">
+                        <tr>
+                            <td colspan="4" class="text-center">
+                                <div class="loading-spinner"></div> Loading servers...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function loadOverviewData() {
+    try {
+        const response = await fetch('/api/bot/status');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        
+        document.getElementById('stat-guilds').textContent = data.guilds || 0;
+        document.getElementById('stat-users').textContent = data.users || 0;
+        document.getElementById('bot-latency').textContent = data.latency || 0;
+        document.getElementById('bot-commands').textContent = data.commands_executed || 0;
+        document.getElementById('stat-uptime').textContent = data.uptime || 'Unknown';
+        
+        const schedulesResp = await fetch('/api/train/schedules');
+        if (schedulesResp.ok) {
+            const schedules = await schedulesResp.json();
+            document.getElementById('stat-schedules').textContent = schedules.schedules?.length || 0;
+        }
+        
+        loadConnectedServers();
+        
+    } catch (error) {
+        console.error('Failed to load overview data:', error);
+        document.getElementById('stat-guilds').textContent = '--';
+        document.getElementById('stat-users').textContent = '--';
+        document.getElementById('bot-latency').textContent = '--';
+        document.getElementById('bot-commands').textContent = '--';
+        document.getElementById('stat-uptime').textContent = 'Unknown';
+        document.getElementById('stat-schedules').textContent = '--';
+    }
+}
+
+async function loadConnectedServers() {
+    const tbody = document.getElementById('servers-tbody');
+    
+    try {
+        const response = await fetch('/api/guilds');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        
+        if (data.guilds && data.guilds.length > 0) {
+            tbody.innerHTML = data.guilds.map(guild => `
+                <tr>
+                    <td><strong style="color: #60a5fa;">${guild.name}</strong></td>
+                    <td><span style="color: #93c5fd;">${guild.member_count}</span></td>
+                    <td><span style="color: #93c5fd;">${guild.active_schedules}</span></td>
+                    <td>
+                        ${guild.live_tracking ? 
+                            '<span class="badge bg-success"><i class="fas fa-check"></i> Active</span>' : 
+                            '<span class="badge bg-secondary"><i class="fas fa-times"></i> Inactive</span>'}
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No servers connected</td></tr>';
+        }
+    } catch (error) {
+        console.error('Failed to load connected servers:', error);
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Error loading servers</td></tr>';
+    }
+}
+
+document.getElementById('overview-tab').addEventListener('shown.bs.tab', loadOverviewData);
+if (document.getElementById('overview-tab').classList.contains('active')) {
+    loadOverviewData();
+}
+</script>

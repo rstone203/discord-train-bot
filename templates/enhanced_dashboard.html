@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Lounge Train - Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/2991/2991148.png">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --dark-color: #2c3e50;
+            --light-bg: #f8f9fc;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--light-bg) 0%, #e3f2fd 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            background: linear-gradient(135deg, var(--dark-color) 0%, #34495e 100%);
+            min-height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar .nav-link {
+            color: #ecf0f1;
+            padding: 12px 20px;
+            margin: 5px 15px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .sidebar .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            transform: translateX(5px);
+        }
+        
+        .sidebar .nav-link.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: #fff;
+        }
+        
+        .content-area {
+            margin-left: 280px;
+            padding: 20px;
+        }
+        
+        .dashboard-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+        
+        .schedule-item {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 5px solid var(--primary-color);
+            box-shadow: 0 3px 15px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }
+        
+        .schedule-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+        }
+        
+        .btn-custom {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            color: white;
+        }
+        
+        .status-online { color: var(--success-color); }
+        .status-offline { color: var(--danger-color); }
+        .status-warning { color: var(--warning-color); }
+        
+        .command-btn {
+            width: 100%;
+            text-align: left;
+            margin-bottom: 8px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #ecf0f1;
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        
+        .command-btn:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+        
+        .section-title {
+            color: #bbb;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin: 20px 20px 10px 20px;
+            letter-spacing: 1px;
+        }
+        
+        .brand-logo {
+            padding: 25px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+        }
+        
+        .brand-logo h4 {
+            color: #fff;
+            margin: 0;
+            font-weight: 700;
+        }
+        
+        .brand-logo small {
+            color: #bbb;
+            font-size: 11px;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                position: relative;
+                width: 100%;
+                min-height: auto;
+                margin-bottom: 20px;
+            }
+            .content-area {
+                margin-left: 0;
+            }
+            .command-btn {
+                font-size: 14px;
+                padding: 12px 15px;
+                margin-bottom: 10px;
+            }
+            .brand-logo {
+                padding: 20px;
+            }
+        }
+        
+        .participants-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .participant-item {
+            background: rgba(0,0,0,0.02);
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .edit-schedule-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="brand-logo">
+            <h4><i class="fas fa-train"></i> Game Lounge Train</h4>
+            <small>Discord Bot Dashboard</small>
+        </div>
+        
+        <div class="section-title">Quick Commands</div>
+        <div class="px-3">
+            <button class="btn command-btn" onclick="executeCommand('ping')">
+                <i class="fas fa-signal"></i> Check Latency
+            </button>
+            <button class="btn command-btn" onclick="executeCommand('info')">
+                <i class="fas fa-info-circle"></i> Bot Info
+            </button>
+            <button class="btn command-btn" onclick="executeCommand('uptime')">
+                <i class="fas fa-clock"></i> Uptime
+            </button>
+            <button class="btn command-btn" onclick="executeCommand('servers')">
+                <i class="fas fa-server"></i> Server List
+            </button>
+        </div>
+        
+        <div class="section-title">Train Management</div>
+        <div class="px-3">
+            <button class="btn command-btn" onclick="showSection('schedules')">
+                <i class="fas fa-calendar-alt"></i> View Schedules
+            </button>
+            <button class="btn command-btn" onclick="showCreateSchedule()">
+                <i class="fas fa-plus-circle"></i> Create Schedule
+            </button>
+            <button class="btn command-btn" onclick="executeCommand('timeslots')">
+                <i class="fas fa-list"></i> Time Slots
+            </button>
+            <button class="btn command-btn" onclick="showSection('participants')">
+                <i class="fas fa-users"></i> Participants
+            </button>
+        </div>
+        
+        <div class="section-title">Analytics</div>
+        <div class="px-3">
+            <button class="btn command-btn" onclick="executeCommand('raidstats')">
+                <i class="fas fa-chart-bar"></i> Raid Stats
+            </button>
+            <button class="btn command-btn" onclick="executeCommand('leaderboard')">
+                <i class="fas fa-trophy"></i> Leaderboard
+            </button>
+            <button class="btn command-btn" onclick="executeCommand('analytics')">
+                <i class="fas fa-chart-line"></i> Analytics
+            </button>
+            <button class="btn command-btn" onclick="executeCommand('topusers')">
+                <i class="fas fa-star"></i> Top Users
+            </button>
+        </div>
+        
+        <div class="section-title">Stream Management</div>
+        <div class="px-3">
+            <button class="btn command-btn" onclick="executeCommand('streams')">
+                <i class="fas fa-video"></i> Monitored Streams
+            </button>
+            <button class="btn command-btn" onclick="executeCommand('livestreams')">
+                <i class="fas fa-broadcast-tower"></i> Live Streams
+            </button>
+        </div>
+        
+        <div class="section-title">Settings</div>
+        <div class="px-3">
+            <button class="btn command-btn" onclick="executeCommand('notifstatus')">
+                <i class="fas fa-bell"></i> Notifications
+            </button>
+            <button class="btn command-btn" onclick="showSection('settings')">
+                <i class="fas fa-cog"></i> Bot Settings
+            </button>
+            <button class="btn command-btn" onclick="showSection('forwarding')">
+                <i class="fas fa-share"></i> Forwarding
+            </button>
+            <button class="btn command-btn" onclick="executeCommand('dbstats')">
+                <i class="fas fa-database"></i> Database Stats
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <div class="content-area">
+        <div class="dashboard-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1><i class="fas fa-train"></i> Game Lounge Train Dashboard</h1>
+                    <p class="mb-0">Real-time Discord bot management and train schedule control</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="status-indicator">
+                        <i class="fas fa-circle {{ 'status-online' if bot_status.online else 'status-offline' }}"></i>
+                        <span>{{ bot_status.status }}</span>
+                    </div>
+                    <small class="d-block mt-1">{{ current_time }}</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bot Status Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card text-center">
+                    <div class="display-6 text-primary mb-2">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <h3 class="text-primary">{{ bot_status.guild_count }}</h3>
+                    <p class="text-muted mb-0">Servers</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card text-center">
+                    <div class="display-6 text-success mb-2">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <h3 class="text-success">{{ train_schedules|length }}</h3>
+                    <p class="text-muted mb-0">Active Schedules</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card text-center">
+                    <div class="display-6 text-warning mb-2">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3 class="text-warning" id="total-participants">0</h3>
+                    <p class="text-muted mb-0">Train Participants</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card text-center">
+                    <div class="display-6 text-info mb-2">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <h3 class="text-info" id="uptime-display">{{ (bot_status.uptime_seconds // 3600) }}h {{ ((bot_status.uptime_seconds % 3600) // 60) }}m</h3>
+                    <p class="text-muted mb-0">Uptime</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Command Results -->
+        <div id="command-results" class="mb-4" style="display: none;">
+            <div class="stat-card">
+                <h5><i class="fas fa-terminal"></i> Command Results</h5>
+                <div id="command-output"></div>
+            </div>
+        </div>
+
+        <!-- Train Schedules Section -->
+        <div id="schedules-section">
+            <div class="row">
+                <div class="col-12">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5><i class="fas fa-calendar-alt"></i> Train Schedules</h5>
+                            <button class="btn btn-custom btn-sm" onclick="showCreateSchedule()">
+                                <i class="fas fa-plus"></i> Create Schedule
+                            </button>
+                        </div>
+                        
+                        <div id="schedules-list">
+                            {% for schedule in train_schedules %}
+                            <div class="schedule-item" data-schedule-id="{{ schedule.id }}">
+                                <div class="row align-items-center">
+                                    <div class="col-md-8">
+                                        <div class="d-flex align-items-center mb-1">
+                                            <h6 class="mb-0 me-2">{{ schedule.name }}</h6>
+                                            <small class="badge bg-info">{{ schedule.type_display }}</small>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-sm-6">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-calendar"></i> {{ schedule.day_name }}
+                                                    <i class="fas fa-clock ms-2"></i> {{ schedule.time_display }}
+                                                </small>
+                                            </div>
+                                            <div class="col-sm-6">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-hourglass-half"></i> {{ schedule.duration_minutes }}min
+                                                    <i class="fas fa-bell ms-2"></i> {{ schedule.notify_before_minutes }}min notify
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div class="row mt-1">
+                                            <div class="col-sm-6">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-users"></i> {{ schedule.participant_count }}{% if schedule.max_participants %}/{{ schedule.max_participants }}{% endif %} participants
+                                                </small>
+                                            </div>
+                                            {% if schedule.specific_date %}
+                                            <div class="col-sm-6">
+                                                <small class="text-warning">
+                                                    <i class="fas fa-calendar-day"></i> {{ schedule.specific_date }}
+                                                </small>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% if schedule.description != 'No description' %}
+                                        <div class="mt-1">
+                                            <small class="text-info"><i class="fas fa-info-circle"></i> {{ schedule.description }}</small>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <button class="btn btn-sm btn-outline-primary me-2" onclick="editSchedule({{ schedule.id }})">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success me-2" onclick="manageParticipants({{ schedule.id }})">
+                                            <i class="fas fa-users"></i> Manage
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteSchedule({{ schedule.id }})">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Edit Form (Hidden by default) -->
+                                <div id="edit-form-{{ schedule.id }}" class="edit-schedule-form">
+                                    <h6>Edit Schedule</h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Schedule Name</label>
+                                            <input type="text" class="form-control" id="edit-name-{{ schedule.id }}" value="{{ schedule.name }}">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label">Duration (minutes)</label>
+                                            <input type="number" class="form-control" id="edit-duration-{{ schedule.id }}" value="{{ schedule.duration_minutes }}">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label">Status</label>
+                                            <select class="form-control" id="edit-active-{{ schedule.id }}">
+                                                <option value="true" {{ 'selected' if schedule.is_active else '' }}>Active</option>
+                                                <option value="false" {{ 'selected' if not schedule.is_active else '' }}>Inactive</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <label class="form-label">Discord User IDs (Participants)</label>
+                                            <div class="form-text mb-2">
+                                                <i class="fas fa-info-circle"></i> Enter Discord User IDs (one per line or comma-separated)
+                                            </div>
+                                            <textarea class="form-control" id="edit-participants-{{ schedule.id }}" rows="3" 
+                                                      placeholder="123456789012345678&#10;987654321098765432"
+                                                      style="font-family: monospace;">{% if schedule.participant_ids %}{{ schedule.participant_ids | join('\n') }}{% endif %}</textarea>
+                                            <div class="form-text">
+                                                <small>💡 Tip: Right-click a user in Discord → Copy User ID, or type \@username to get their ID</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <button class="btn btn-success btn-sm me-2" onclick="saveSchedule({{ schedule.id }})">
+                                                <i class="fas fa-save"></i> Save Changes
+                                            </button>
+                                            <button class="btn btn-secondary btn-sm" onclick="cancelEdit({{ schedule.id }})">
+                                                <i class="fas fa-times"></i> Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if not train_schedules %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-calendar-plus display-1 text-muted mb-3"></i>
+                            <h5 class="text-muted">No active train schedules</h5>
+                            <p class="text-muted">Create your first schedule using <code>!createschedule</code> in Discord!</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create Schedule Section -->
+        <div id="create-schedule-section" style="display: none;">
+            <div class="stat-card">
+                <h5><i class="fas fa-plus-circle"></i> Create New Train Schedule</h5>
+                <form id="schedule-form">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label class="form-label">Schedule Name</label>
+                                <input type="text" class="form-control" id="schedule-name" placeholder="e.g., Monday Night Train" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Day of Week</label>
+                                <select class="form-control" id="day-of-week" required>
+                                    <option value="">Select Day...</option>
+                                    <option value="0">Monday</option>
+                                    <option value="1">Tuesday</option>
+                                    <option value="2">Wednesday</option>
+                                    <option value="3">Thursday</option>
+                                    <option value="4">Friday</option>
+                                    <option value="5">Saturday</option>
+                                    <option value="6">Sunday</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Specific Date (optional)</label>
+                                <input type="date" class="form-control" id="schedule-date" 
+                                       placeholder="Leave blank for recurring weekly">
+                                <small class="text-muted">For planning ahead to a specific date</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Schedule Type</label>
+                                <select class="form-control" id="schedule-type">
+                                    <option value="recurring">Recurring Weekly</option>
+                                    <option value="one-time">One-Time Event</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Start Time</label>
+                                <input type="time" class="form-control" id="start-time" required>
+                                <small class="text-muted">Time in EST (Eastern Standard Time)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Number of Slots</label>
+                                <input type="number" class="form-control" id="num-slots" min="1" max="20" value="4" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Minutes per Slot</label>
+                                <input type="number" class="form-control" id="slot-duration" min="15" max="300" value="30" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Max Participants (optional)</label>
+                                <input type="number" class="form-control" id="max-participants" min="1" max="50" placeholder="Leave blank for unlimited">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Guild/Server</label>
+                                <select class="form-control" id="schedule-guild" required>
+                                    <option value="">Select Server...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="participant-ids" class="form-label">
+                            <i class="fas fa-bell text-warning"></i> Participants to Ping
+                        </label>
+                        <textarea class="form-control" id="participant-ids" rows="3" placeholder="Enter Discord User IDs, one per line or separated by commas&#10;Example: 1234567890123456789, 9876543210987654321"></textarea>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle text-info"></i> Enter Discord User IDs of people to ping <strong>60 minutes before</strong> this slot starts.
+                            <br><span class="text-warning">💡 Get Discord ID: Enable Developer Mode → Right-click user → Copy ID</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description (optional)</label>
+                        <textarea class="form-control" id="schedule-description" rows="3" placeholder="Brief description of this train schedule"></textarea>
+                    </div>
+                    <div class="text-center">
+                        <button type="button" class="btn btn-train" onclick="createTrainSchedule()">
+                            <i class="fas fa-plus"></i> Create Train Schedule
+                        </button>
+                        <button type="button" class="btn btn-secondary ms-2" onclick="resetScheduleForm()">
+                            <i class="fas fa-undo"></i> Reset Form
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Schedule Preview -->
+            <div class="stat-card mt-3" id="schedule-preview" style="display: none;">
+                <h6><i class="fas fa-eye"></i> Schedule Preview</h6>
+                <div id="preview-content"></div>
+            </div>
+        </div>
+
+        <!-- Bot Settings Section -->
+        <div id="settings-section" style="display: block;">
+            <div class="row">
+                <!-- Trusted Users Management -->
+                <div class="col-md-6">
+                    <div class="stat-card">
+                        <h5><i class="fas fa-user-shield"></i> Trusted Users</h5>
+                        <div class="mb-3">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="new-trusted-user" placeholder="Discord User ID or @mention">
+                                <button class="btn btn-success" onclick="addTrustedUser()">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                        <div id="trusted-users-list">
+                            <p class="text-muted">Loading trusted users...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notification Settings -->
+                <div class="col-md-6">
+                    <div class="stat-card">
+                        <h5><i class="fas fa-bell"></i> Notification Settings</h5>
+                        <form id="notification-form">
+                            <div class="mb-3">
+                                <label class="form-label">Raid Channel</label>
+                                <select class="form-control" id="raid-channel">
+                                    <option value="">Select Channel...</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Backup Channel</label>
+                                <select class="form-control" id="backup-channel">
+                                    <option value="">Select Channel...</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Stream Channel</label>
+                                <select class="form-control" id="stream-channel">
+                                    <option value="">Select Channel...</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Ping Timeout (minutes)</label>
+                                <input type="number" class="form-control" id="ping-timeout" value="15" min="5" max="120">
+                            </div>
+                            <button type="button" class="btn btn-custom" onclick="saveNotificationSettings()">
+                                <i class="fas fa-save"></i> Save Settings
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Stream Monitoring -->
+                <div class="col-md-6">
+                    <div class="stat-card">
+                        <h5><i class="fas fa-video"></i> Stream Monitoring</h5>
+                        <div class="mb-3">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="new-stream" placeholder="Twitch Username">
+                                <button class="btn btn-success" onclick="addStream()">
+                                    <i class="fas fa-plus"></i> Add Stream
+                                </button>
+                            </div>
+                        </div>
+                        <div id="monitored-streams-list">
+                            <p class="text-muted">Loading monitored streams...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bot Configuration -->
+                <div class="col-md-6">
+                    <div class="stat-card">
+                        <h5><i class="fas fa-cog"></i> Bot Configuration</h5>
+                        <form id="bot-config-form">
+                            <div class="mb-3">
+                                <label class="form-label">Bot Status Message</label>
+                                <input type="text" class="form-control" id="bot-status" placeholder="watching 4 servers">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Command Prefix</label>
+                                <input type="text" class="form-control" id="command-prefix" value="!" maxlength="3">
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="auto-ping-enabled">
+                                    <label class="form-check-label" for="auto-ping-enabled">
+                                        Enable Auto Ping
+                                    </label>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-custom" onclick="saveBotConfig()">
+                                <i class="fas fa-save"></i> Save Configuration
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Message Forwarding Section -->
+        <div id="forwarding-section" style="display: none;">
+            <div class="stat-card">
+                <h5><i class="fas fa-share"></i> Message Forwarding</h5>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Source</th>
+                                <th>Target</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for config in forwarding_configs %}
+                            <tr>
+                                <td>{{ config.source_guild_name }} > {{ config.source_channel_name }}</td>
+                                <td>{{ config.target_guild_name }} > {{ config.target_channel_name }}</td>
+                                <td>
+                                    <span class="badge {{ 'bg-success' if config.is_active else 'bg-danger' }}">
+                                        {{ 'Active' if config.is_active else 'Inactive' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="toggleForwarding({{ config.id }})">
+                                        {{ 'Disable' if config.is_active else 'Enable' }}
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% if not forwarding_configs %}
+                    <div class="text-center py-4">
+                        <p class="text-muted">No forwarding configurations found.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Section Management
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('[id$="-section"]').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // Show selected section
+            const section = document.getElementById(sectionName + '-section');
+            if (section) {
+                section.style.display = 'block';
+                
+                // Load data for specific sections
+                if (sectionName === 'settings') {
+                    loadTrustedUsers();
+                    loadMonitoredStreams();
+                }
+            } else {
+                document.getElementById('schedules-section').style.display = 'block';
+            }
+        }
+        
+        // Command Execution
+        function executeCommand(commandName, args = []) {
+            fetch('/api/commands/execute', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    command: commandName,
+                    args: args
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayCommandResult(data);
+            })
+            .catch(error => {
+                console.error('Error executing command:', error);
+                displayCommandResult({success: false, error: 'Network error'});
+            });
+        }
+        
+        function displayCommandResult(result) {
+            const resultsDiv = document.getElementById('command-results');
+            const outputDiv = document.getElementById('command-output');
+            
+            resultsDiv.style.display = 'block';
+            
+            if (result.success) {
+                let content = `<div class="alert alert-success"><strong>${result.command}</strong> executed successfully</div>`;
+                
+                if (result.data) {
+                    if (result.data.latency_ms !== undefined) {
+                        content += `<p><strong>Bot Latency:</strong> ${result.data.latency_ms}ms</p>`;
+                    }
+                    if (result.data.uptime_seconds !== undefined) {
+                        const hours = Math.floor(result.data.uptime_seconds / 3600);
+                        const minutes = Math.floor((result.data.uptime_seconds % 3600) / 60);
+                        content += `<p><strong>Uptime:</strong> ${hours}h ${minutes}m</p>`;
+                    }
+                    if (result.data.guilds !== undefined) {
+                        content += `<p><strong>Servers:</strong> ${result.data.guilds} | <strong>Users:</strong> ${result.data.users || 'N/A'}</p>`;
+                    }
+                    if (result.data.servers) {
+                        content += '<h6>Server List:</h6><ul>';
+                        result.data.servers.forEach(server => {
+                            content += `<li><strong>${server.name}</strong> (${server.members} members)</li>`;
+                        });
+                        content += '</ul>';
+                    }
+                    if (result.data.leaders) {
+                        content += '<h6>Leaderboard:</h6><ol>';
+                        result.data.leaders.forEach(leader => {
+                            content += `<li><strong>${leader.name}</strong> - ${leader.score} points</li>`;
+                        });
+                        content += '</ol>';
+                    }
+                    if (result.data.streams) {
+                        content += '<h6>Monitored Streams:</h6>';
+                        result.data.streams.forEach(stream => {
+                            const status = stream.online ? '<span class="badge bg-success">Live</span>' : '<span class="badge bg-secondary">Offline</span>';
+                            content += `<div class="mb-2"><strong>${stream.username}</strong> ${status} - ${stream.category} (${stream.last_seen})</div>`;
+                        });
+                    }
+                    if (result.data.stats) {
+                        content += '<h6>Statistics:</h6><ul>';
+                        Object.entries(result.data.stats).forEach(([key, value]) => {
+                            const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            content += `<li><strong>${formattedKey}:</strong> ${value}</li>`;
+                        });
+                        content += '</ul>';
+                    }
+                    if (result.data.users) {
+                        content += '<h6>Top Users:</h6>';
+                        result.data.users.forEach((user, index) => {
+                            content += `<div class="mb-2"><strong>#${index + 1} ${user.name}</strong> - ${user.message_count} messages (${user.last_active})</div>`;
+                        });
+                    }
+                    if (result.data.settings) {
+                        content += '<h6>Notification Settings:</h6><ul>';
+                        Object.entries(result.data.settings).forEach(([key, value]) => {
+                            if (key !== 'error' && key !== 'guild_id') {
+                                const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                content += `<li><strong>${formattedKey}:</strong> ${value}</li>`;
+                            }
+                        });
+                        content += '</ul>';
+                    }
+                }
+                
+                outputDiv.innerHTML = content;
+            } else {
+                outputDiv.innerHTML = `<div class="alert alert-danger"><strong>Error:</strong> ${result.error}</div>`;
+            }
+            
+            // Auto-hide after 10 seconds
+            setTimeout(() => {
+                resultsDiv.style.display = 'none';
+            }, 10000);
+        }
+        
+        // Schedule Management Functions
+        function editSchedule(scheduleId) {
+            const editForm = document.getElementById('edit-form-' + scheduleId);
+            if (editForm.style.display === 'none' || !editForm.style.display) {
+                editForm.style.display = 'block';
+            } else {
+                editForm.style.display = 'none';
+            }
+        }
+        
+        function cancelEdit(scheduleId) {
+            document.getElementById('edit-form-' + scheduleId).style.display = 'none';
+        }
+        
+        function saveSchedule(scheduleId) {
+            const name = document.getElementById('edit-name-' + scheduleId).value;
+            const duration = document.getElementById('edit-duration-' + scheduleId).value;
+            const isActive = document.getElementById('edit-active-' + scheduleId).value === 'true';
+            const participantsText = document.getElementById('edit-participants-' + scheduleId).value;
+            
+            // Parse participant IDs
+            const participantIds = parseParticipantIds(participantsText);
+            
+            fetch('/api/schedule/' + scheduleId, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: name,
+                    duration_minutes: parseInt(duration),
+                    is_active: isActive,
+                    participant_ids: participantIds
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ Schedule updated successfully!\n\n' + 
+                          'Name: ' + name + '\n' + 
+                          'Duration: ' + duration + ' minutes\n' + 
+                          'Participants: ' + participantIds.length + ' users\n' + 
+                          'Status: ' + (isActive ? 'Active' : 'Inactive'));
+                    location.reload();
+                } else {
+                    alert('❌ Error updating schedule: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error updating schedule:', error);
+                alert('❌ Network error while updating schedule. Please try again.');
+            });
+        }
+        
+        function deleteSchedule(scheduleId) {
+            if (confirm('Are you sure you want to delete this schedule? This will remove all participants.')) {
+                fetch('/api/schedule/' + scheduleId, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Schedule deleted successfully!');
+                        location.reload();
+                    } else {
+                        alert('Error deleting schedule: ' + data.error);
+                    }
+                });
+            }
+        }
+        
+        function showCreateSchedule() {
+            showSection('create-schedule');
+        }
+        
+        function toggleForwarding(configId) {
+            fetch('/api/forwarding/' + configId, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    toggle: true
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error updating forwarding: ' + data.error);
+                }
+            });
+        }
+        
+        // Auto-refresh status every 30 seconds
+        setInterval(() => {
+            fetch('/api/dashboard/status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.bot && data.bot.uptime_seconds) {
+                    const hours = Math.floor(data.bot.uptime_seconds / 3600);
+                    const minutes = Math.floor((data.bot.uptime_seconds % 3600) / 60);
+                    document.getElementById('uptime-display').textContent = `${hours}h ${minutes}m`;
+                }
+            })
+            .catch(error => console.log('Status refresh error:', error));
+        }, 30000);
+        
+        // Bot Settings Functions
+        function addTrustedUser() {
+            const userInput = document.getElementById('new-trusted-user');
+            const userId = userInput.value.trim();
+            
+            if (!userId) {
+                alert('Please enter a Discord User ID or @mention');
+                return;
+            }
+            
+            fetch('/api/trusted-users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_id: userId.replace(/[<@!>]/g, '') // Clean Discord mention format
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    userInput.value = '';
+                    loadTrustedUsers();
+                    alert('Trusted user added successfully!');
+                } else {
+                    alert('Error adding trusted user: ' + data.error);
+                }
+            });
+        }
+        
+        function removeTrustedUser(userId) {
+            if (confirm('Remove this trusted user?')) {
+                fetch('/api/trusted-users/' + userId, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loadTrustedUsers();
+                        alert('Trusted user removed successfully!');
+                    } else {
+                        alert('Error removing trusted user: ' + data.error);
+                    }
+                });
+            }
+        }
+        
+        function loadTrustedUsers() {
+            fetch('/api/trusted-users')
+            .then(response => response.json())
+            .then(data => {
+                const listDiv = document.getElementById('trusted-users-list');
+                if (data.success && data.users.length > 0) {
+                    let html = '';
+                    data.users.forEach(user => {
+                        html += `
+                            <div class="participant-item">
+                                <span><strong>${user.username || 'Unknown'}</strong> (ID: ${user.user_id})</span>
+                                <button class="btn btn-sm btn-outline-danger" onclick="removeTrustedUser('${user.user_id}')">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        `;
+                    });
+                    listDiv.innerHTML = html;
+                } else {
+                    listDiv.innerHTML = '<p class="text-muted">No trusted users found</p>';
+                }
+            });
+        }
+        
+        function addStream() {
+            const streamInput = document.getElementById('new-stream');
+            const streamName = streamInput.value.trim();
+            
+            if (!streamName) {
+                alert('Please enter a Twitch username');
+                return;
+            }
+            
+            fetch('/api/streams', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: streamName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    streamInput.value = '';
+                    loadMonitoredStreams();
+                    alert('Stream added successfully!');
+                } else {
+                    alert('Error adding stream: ' + data.error);
+                }
+            });
+        }
+        
+        function removeStream(streamName) {
+            if (confirm('Stop monitoring this stream?')) {
+                fetch('/api/streams/' + streamName, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loadMonitoredStreams();
+                        alert('Stream removed successfully!');
+                    } else {
+                        alert('Error removing stream: ' + data.error);
+                    }
+                });
+            }
+        }
+        
+        function loadMonitoredStreams() {
+            fetch('/api/streams')
+            .then(response => response.json())
+            .then(data => {
+                const listDiv = document.getElementById('monitored-streams-list');
+                if (data.success && data.streams.length > 0) {
+                    let html = '';
+                    data.streams.forEach(stream => {
+                        const status = stream.online ? '<span class="badge bg-success">Live</span>' : '<span class="badge bg-secondary">Offline</span>';
+                        html += `
+                            <div class="participant-item">
+                                <span><strong>${stream.username}</strong> ${status}</span>
+                                <button class="btn btn-sm btn-outline-danger" onclick="removeStream('${stream.username}')">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        `;
+                    });
+                    listDiv.innerHTML = html;
+                } else {
+                    listDiv.innerHTML = '<p class="text-muted">No monitored streams found</p>';
+                }
+            });
+        }
+        
+        function loadChannels() {
+            fetch('/api/channels')
+            .then(response => response.json())
+            .then(channels => {
+                const selects = ['raid-channel', 'backup-channel', 'stream-channel'];
+                selects.forEach(selectId => {
+                    const select = document.getElementById(selectId);
+                    select.innerHTML = '<option value="">Select Channel...</option>';
+                    channels.forEach(channel => {
+                        select.innerHTML += `<option value="${channel.id}">${channel.display_name}</option>`;
+                    });
+                });
+            });
+            
+            // Also load guilds for schedule creation
+            fetch('/api/guilds')
+            .then(response => response.json())
+            .then(guilds => {
+                const guildSelect = document.getElementById('schedule-guild');
+                if (guildSelect) {
+                    guildSelect.innerHTML = '<option value="">Select Server...</option>';
+                    guilds.forEach(guild => {
+                        guildSelect.innerHTML += `<option value="${guild.id}">${guild.name}</option>`;
+                    });
+                }
+            });
+        }
+        
+        // Schedule Management Functions
+        function createTrainSchedule() {
+            // Convert local time to UTC
+            const localTime = document.getElementById('start-time').value;
+            const utcTime = convertLocalTimeToUTC(localTime);
+            
+            const scheduleData = {
+                name: document.getElementById('schedule-name').value,
+                day_of_week: parseInt(document.getElementById('day-of-week').value),
+                specific_date: document.getElementById('schedule-date').value || null,
+                schedule_type: document.getElementById('schedule-type').value,
+                start_time: utcTime,
+                num_slots: parseInt(document.getElementById('num-slots').value),
+                slot_duration: parseInt(document.getElementById('slot-duration').value),
+                max_participants: document.getElementById('max-participants').value || null,
+                participant_ids: parseParticipantIds(document.getElementById('participant-ids').value),
+                guild_id: document.getElementById('schedule-guild').value,
+                description: document.getElementById('schedule-description').value || null
+            };
+            
+            // Enhanced validation
+            if (!scheduleData.name || scheduleData.day_of_week === '' || !scheduleData.start_time || 
+                !scheduleData.num_slots || !scheduleData.slot_duration || !scheduleData.guild_id) {
+                alert('Please fill in all required fields (marked with *)');
+                return;
+            }
+            
+            // Validate date for one-time events
+            if (scheduleData.schedule_type === 'one-time' && !scheduleData.specific_date) {
+                alert('Please select a specific date for one-time events');
+                return;
+            }
+            
+            // Add loading indicator
+            const button = document.querySelector('button[onclick="createTrainSchedule()"]');
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+            button.disabled = true;
+            
+            // Use AbortController for timeout handling
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+            
+            fetch('/api/train-schedules', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(scheduleData),
+                signal: controller.signal
+            })
+            .then(response => {
+                clearTimeout(timeoutId);
+                console.log('✅ Response received:', response.status, response.ok);
+                
+                // Simple success check
+                if (response.status === 200) {
+                    return response.json();
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            })
+            .then(data => {
+                console.log('✅ Data received:', data);
+                
+                if (data.success) {
+                    // Success - show appropriate confirmation message
+                    let successMessage = `🎉 SUCCESS!\n\n`;
+                    
+                    if (data.total_slots > 1) {
+                        successMessage += `Created ${data.total_slots} consecutive time slots!\n`;
+                        successMessage += `Base name: "${scheduleData.name}"\n`;
+                        successMessage += `Duration: ${data.slot_duration} minutes each\n`;
+                        successMessage += `Schedule IDs: ${Array.isArray(data.schedule_id) ? data.schedule_id.join(', ') : data.schedule_id}`;
+                    } else {
+                        successMessage += `Train schedule "${scheduleData.name}" created!\n`;
+                        successMessage += `Schedule ID: ${data.schedule_id}`;
+                    }
+                    
+                    alert(successMessage);
+                    resetScheduleForm();
+                    showSection('schedules');
+                    
+                    // Force page refresh to show new schedules
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    alert(`❌ Server Error: ${data.error || 'Unknown error'}`);
+                }
+            })
+            .catch(error => {
+                clearTimeout(timeoutId);
+                console.error('❌ Error:', error);
+                
+                if (error.name === 'AbortError') {
+                    alert('⏰ Request timed out. The schedule may have been created. Please refresh the page to check.');
+                } else if (error.message.includes('Failed to fetch')) {
+                    alert('📡 Connection error. Schedule may have been created. Please refresh the page to verify.');
+                } else {
+                    alert(`⚠️ Error: ${error.message}\n\nThe schedule may have been created successfully.\nPlease refresh the page to check your schedules.`);
+                }
+            })
+            .finally(() => {
+                clearTimeout(timeoutId);
+                button.innerHTML = originalText;
+                button.disabled = false;
+            });
+        }
+        
+        // Helper function to parse participant IDs
+        function parseParticipantIds(input) {
+            if (!input || input.trim() === '') return [];
+            
+            // Split by newlines and commas, then clean up
+            const ids = input.split(/[\n,]/)
+                .map(id => id.trim())
+                .filter(id => id !== '' && /^\d{17,19}$/.test(id)); // Validate Discord ID format
+            
+            return ids;
+        }
+        
+        function resetScheduleForm() {
+            document.getElementById('schedule-form').reset();
+            document.getElementById('schedule-preview').style.display = 'none';
+        }
+        
+        function previewSchedule() {
+            const name = document.getElementById('schedule-name').value;
+            const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            const dayIndex = parseInt(document.getElementById('day-of-week').value);
+            const specificDate = document.getElementById('schedule-date').value;
+            const scheduleType = document.getElementById('schedule-type').value;
+            const startTime = document.getElementById('start-time').value;
+            const numSlots = document.getElementById('num-slots').value;
+            const duration = document.getElementById('slot-duration').value;
+            
+            if (name && dayIndex !== '' && startTime && numSlots && duration) {
+                let scheduleInfo = '';
+                if (scheduleType === 'one-time' && specificDate) {
+                    const dateObj = new Date(specificDate);
+                    scheduleInfo = `${dateObj.toLocaleDateString('en-US', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})} at ${startTime}`;
+                } else if (specificDate) {
+                    const dateObj = new Date(specificDate);
+                    scheduleInfo = `${dayNames[dayIndex]} starting ${dateObj.toLocaleDateString()} at ${startTime}`;
+                } else {
+                    scheduleInfo = `Every ${dayNames[dayIndex]} at ${startTime}`;
+                }
+                
+                const typeLabel = scheduleType === 'one-time' ? 'One-Time Event' : 'Recurring Weekly';
+                
+                const preview = `
+                    <strong>${name}</strong> <span class="badge bg-info">${typeLabel}</span><br>
+                    <small><i class="fas fa-calendar"></i> ${scheduleInfo}</small><br>
+                    <small><i class="fas fa-clock"></i> ${numSlots} slots × ${duration} minutes each</small>
+                `;
+                document.getElementById('preview-content').innerHTML = preview;
+                document.getElementById('schedule-preview').style.display = 'block';
+            }
+        }
+        
+        // Timezone conversion helper function - Assumes EST input
+        function convertLocalTimeToUTC(timeString) {
+            if (!timeString) return timeString;
+            
+            // Create a date object for today with EST time
+            const today = new Date();
+            const [hours, minutes] = timeString.split(':');
+            
+            // Create EST date (EST is UTC-5)
+            const estDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes);
+            
+            // Convert EST to UTC by adding 5 hours
+            const utcDate = new Date(estDate.getTime() + (5 * 60 * 60 * 1000));
+            
+            // Format as HH:MM
+            const utcHours = utcDate.getHours();
+            const utcMinutes = utcDate.getMinutes();
+            return `${utcHours.toString().padStart(2, '0')}:${utcMinutes.toString().padStart(2, '0')}`;
+        }
+        
+        function convertUTCToESTTime(timeString) {
+            if (!timeString) return timeString;
+            
+            // Create a UTC date object
+            const today = new Date();
+            const [hours, minutes] = timeString.split(':');
+            const utcDate = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes));
+            
+            // Convert UTC to EST by subtracting 5 hours
+            const estDate = new Date(utcDate.getTime() - (5 * 60 * 60 * 1000));
+            
+            // Format as HH:MM
+            const estHours = estDate.getHours();
+            const estMinutes = estDate.getMinutes();
+            return `${estHours.toString().padStart(2, '0')}:${estMinutes.toString().padStart(2, '0')}`;
+        }
+
+        // Add event listeners for live preview
+        document.addEventListener('DOMContentLoaded', function() {
+            const previewFields = ['schedule-name', 'day-of-week', 'schedule-date', 'schedule-type', 'start-time', 'num-slots', 'slot-duration'];
+            previewFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.addEventListener('input', previewSchedule);
+                    field.addEventListener('change', previewSchedule);
+                }
+            });
+        });
+        
+        function saveNotificationSettings() {
+            const settings = {
+                raid_channel_id: document.getElementById('raid-channel').value,
+                backup_channel_id: document.getElementById('backup-channel').value,
+                stream_channel_id: document.getElementById('stream-channel').value,
+                ping_timeout_minutes: parseInt(document.getElementById('ping-timeout').value)
+            };
+            
+            fetch('/api/notification-settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(settings)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Notification settings saved successfully!');
+                } else {
+                    alert('Error saving settings: ' + data.error);
+                }
+            });
+        }
+        
+        function saveBotConfig() {
+            const config = {
+                status_message: document.getElementById('bot-status').value,
+                command_prefix: document.getElementById('command-prefix').value,
+                auto_ping_enabled: document.getElementById('auto-ping-enabled').checked
+            };
+            
+            fetch('/api/bot-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Bot configuration saved successfully!');
+                } else {
+                    alert('Error saving configuration: ' + data.error);
+                }
+            });
+        }
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            showSection('settings'); // Show Bot Settings by default for easier editing
+            loadChannels();
+        });
+    </script>
+</body>
+</html>

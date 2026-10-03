@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+
+{% block title %}Discord Train Bot - Dashboard{% endblock %}
+
+{% block content %}
+<!-- Dashboard Header -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-left-primary">
+            <div class="card-body py-4">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h2 class="mb-1"><i class="fas fa-train text-primary"></i> Train Bot Dashboard</h2>
+                        <p class="text-muted mb-0">Real-time monitoring and management for your Discord raid train system</p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="status-indicator {{ 'status-online' if bot_status.online else 'status-offline' }}">
+                            <i class="fas fa-circle"></i>
+                            {{ 'Online' if bot_status.online else 'Offline' }}
+                        </div>
+                        <small class="d-block text-muted mt-1">Last updated: {{ current_time.strftime('%H:%M:%S') if current_time else 'Unknown' }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status Cards Row -->
+<div class="row mb-4">
+    <!-- Bot Status Card -->
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="stat-card text-center fade-in">
+            <div class="mb-3">
+                <i class="fas fa-robot fa-3x text-primary"></i>
+            </div>
+            <div class="stat-label">Bot Status</div>
+            <div class="stat-number">
+                {% if bot_status.online %}
+                    <span class="text-success">Online</span>
+                {% else %}
+                    <span class="text-danger">Offline</span>
+                {% endif %}
+            </div>
+            <div class="text-muted small">
+                <i class="fas fa-clock"></i> Uptime: {{ bot_status.uptime if bot_status.uptime else 'Unknown' }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Servers Card -->
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="stat-card text-center fade-in">
+            <div class="mb-3">
+                <i class="fas fa-server fa-3x text-success"></i>
+            </div>
+            <div class="stat-label">Connected Servers</div>
+            <div class="stat-number text-success">{{ bot_status.guilds if bot_status.guilds else '0' }}</div>
+            <div class="text-muted small">
+                <i class="fas fa-plug"></i> Active connections
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Card -->
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="stat-card text-center fade-in">
+            <div class="mb-3">
+                <i class="fas fa-users fa-3x text-info"></i>
+            </div>
+            <div class="stat-label">Total Users</div>
+            <div class="stat-number text-info">{{ "{:,}".format(bot_status.users) if bot_status.users else '0' }}</div>
+            <div class="text-muted small">
+                <i class="fas fa-user-check"></i> Across all servers
+            </div>
+        </div>
+    </div>
+
+    <!-- Messages Card -->
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="stat-card text-center fade-in">
+            <div class="mb-3">
+                <i class="fas fa-comments fa-3x text-warning"></i>
+            </div>
+            <div class="stat-label">Messages Processed</div>
+            <div class="stat-number text-warning">{{ "{:,}".format(bot_status.messages_seen) if bot_status.messages_seen else '0' }}</div>
+            <div class="text-muted small">
+                <i class="fas fa-terminal"></i> Commands: {{ "{:,}".format(bot_status.commands_executed) if bot_status.commands_executed else '0' }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Management Cards Row -->
+<div class="row mb-4">
+    <!-- Train Management -->
+    <div class="col-lg-4 mb-4">
+        <div class="card border-left-success">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-train"></i> Train Management</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Manage your raid train schedules and participants</p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success btn-sm">
+                        <i class="fas fa-calendar-alt"></i> View Schedules
+                    </button>
+                    <button class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-users"></i> Manage Participants
+                    </button>
+                    <button class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-plus"></i> Create Schedule
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Forwarding -->
+    <div class="col-lg-4 mb-4">
+        <div class="card border-left-info">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-share-alt"></i> Message Forwarding</h5>
+                <span class="badge bg-success">{{ forwarding_stats.active if forwarding_stats else '0' }} Active</span>
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-3">
+                    <div class="col-6">
+                        <h4 class="text-info mb-0">{{ forwarding_stats.total if forwarding_stats else '0' }}</h4>
+                        <small class="text-muted">Total Rules</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-success mb-0">{{ forwarding_stats.active if forwarding_stats else '0' }}</h4>
+                        <small class="text-muted">Active Rules</small>
+                    </div>
+                </div>
+                <div class="d-grid gap-2">
+                    <a href="/forwarding" class="btn btn-info btn-sm">
+                        <i class="fas fa-cog"></i> Manage Rules
+                    </a>
+                    <button class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-plus"></i> Add New Rule
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="col-lg-4 mb-4">
+        <div class="card border-left-warning">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Frequently used bot commands and tools</p>
+                <div class="d-grid gap-2">
+                    <a href="/logs" class="btn btn-warning btn-sm">
+                        <i class="fas fa-file-alt"></i> View Activity Logs
+                    </a>
+                    <a href="/settings" class="btn btn-outline-warning btn-sm">
+                        <i class="fas fa-cog"></i> Bot Settings
+                    </a>
+                    <button class="btn btn-outline-warning btn-sm" onclick="refreshDashboard()">
+                        <i class="fas fa-sync-alt"></i> Refresh Dashboard
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity Section -->
+<div class="row">
+    <div class="col-12">
+        <div class="card border-left-primary">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Recent Activity</h5>
+                <a href="/logs" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-external-link-alt"></i> View All Logs
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_messages %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-clock"></i> Time</th>
+                                <th><i class="fas fa-user"></i> User</th>
+                                <th><i class="fas fa-server"></i> Server</th>
+                                <th><i class="fas fa-hashtag"></i> Channel</th>
+                                <th><i class="fas fa-comment"></i> Content</th>
+                                <th><i class="fas fa-share"></i> Forwarded</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for message in recent_messages[:10] %}
+                            <tr>
+                                <td>
+                                    <strong>{{ message.timestamp.strftime('%H:%M:%S') if message.timestamp else 'Unknown' }}</strong><br>
+                                    <small class="text-muted">{{ message.timestamp.strftime('%m/%d/%Y') if message.timestamp else '' }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ message.user_id[:8] + '...' if message.user_id and message.user_id|length > 8 else (message.user_id or 'Unknown') }}</span>
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ message.guild_id[:8] + '...' if message.guild_id and message.guild_id|length > 8 else (message.guild_id or 'Unknown') }}</small>
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ message.channel_id[:8] + '...' if message.channel_id and message.channel_id|length > 8 else (message.channel_id or 'Unknown') }}</small>
+                                </td>
+                                <td>
+                                    <span class="text-dark">{{ (message.content[:40] + '...') if message.content and message.content|length > 40 else (message.content or 'No content') }}</span>
+                                </td>
+                                <td>
+                                    {% if message.was_forwarded %}
+                                        <span class="badge bg-success"><i class="fas fa-check"></i> Yes</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="fas fa-times"></i> No</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No Recent Activity</h5>
+                    <p class="text-muted">Activity will appear here as your bot processes messages and commands.</p>
+                    <button class="btn btn-outline-primary" onclick="refreshDashboard()">
+                        <i class="fas fa-sync-alt"></i> Refresh Now
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Enhanced dashboard functionality
+function refreshDashboard() {
+    // Add loading indicator
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+    button.disabled = true;
+    
+    // Simulate loading and refresh
+    setTimeout(function() {
+        location.reload();
+    }, 1000);
+}
+
+// Auto-refresh dashboard every 2 minutes with notification
+let refreshTimer;
+let refreshCountdown = 120;
+
+function updateRefreshTimer() {
+    refreshCountdown--;
+    if (refreshCountdown <= 0) {
+        location.reload();
+    }
+}
+
+function startRefreshTimer() {
+    refreshTimer = setInterval(updateRefreshTimer, 1000);
+}
+
+// Enhanced loading animations
+document.addEventListener('DOMContentLoaded', function() {
+    // Add fade-in animation to cards
+    const cards = document.querySelectorAll('.stat-card, .card');
+    cards.forEach((card, index) => {
+        card.style.animationDelay = (index * 0.1) + 's';
+        card.classList.add('slide-in-up');
+    });
+    
+    // Start auto-refresh timer
+    startRefreshTimer();
+    
+    // Add hover effects to interactive elements
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(button => {
+        button.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+        });
+        
+        button.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+});
+
+// Add click effects to cards
+document.querySelectorAll('.stat-card').forEach(card => {
+    card.addEventListener('click', function() {
+        this.style.transform = 'scale(0.98)';
+        setTimeout(() => {
+            this.style.transform = '';
+        }, 150);
+    });
+});
+
+// Status indicator pulse effect
+const statusIndicators = document.querySelectorAll('.status-online .fas');
+statusIndicators.forEach(indicator => {
+    setInterval(() => {
+        indicator.style.opacity = '0.5';
+        setTimeout(() => {
+            indicator.style.opacity = '1';
+        }, 500);
+    }, 2000);
+});
+
+// Smooth scrolling for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+            target.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>{{ bot_name }} - Dashboard</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --dark-bg: #1a1a2e;
+            --card-bg: #16213e;
+            --text-light: #e4e4e4;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--dark-bg) 0%, #0f3460 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-light);
+            overflow-x: hidden;
+        }
+        
+        .main-header {
+            background: rgba(22, 33, 62, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid var(--primary-color);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        
+        .bot-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 0;
+        }
+        
+        .bot-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid var(--primary-color);
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-online { background: var(--success-color); }
+        .status-offline { background: var(--danger-color); }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .nav-tabs {
+            border-bottom: 2px solid var(--primary-color);
+            overflow-x: auto;
+            overflow-y: hidden;
+            flex-wrap: nowrap;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-color) var(--dark-bg);
+        }
+        
+        .nav-tabs::-webkit-scrollbar {
+            height: 4px;
+        }
+        
+        .nav-tabs::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
+        
+        .nav-tabs .nav-link {
+            color: var(--text-light);
+            border: none;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+            padding: 12px 20px;
+            font-weight: 500;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+        
+        .nav-tabs .nav-link.active {
+            background: transparent;
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+        
+        .dashboard-card {
+            background: rgba(22, 33, 62, 0.8);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .dashboard-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border-radius: 12px;
+            padding: 20px;
+            color: white;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .table-dark {
+            background: rgba(22, 33, 62, 0.8);
+            color: var(--text-light);
+        }
+        
+        .table-dark thead {
+            background: var(--primary-color);
+        }
+        
+        .badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Mobile Optimizations */
+        @media (max-width: 768px) {
+            .bot-info {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .nav-tabs {
+                font-size: 0.9rem;
+            }
+            
+            .nav-tabs .nav-link {
+                padding: 10px 15px;
+            }
+            
+            .stat-card {
+                margin-bottom: 15px;
+            }
+            
+            .stat-value {
+                font-size: 2rem;
+            }
+            
+            .dashboard-card {
+                padding: 15px;
+            }
+            
+            .table-responsive {
+                font-size: 0.85rem;
+            }
+        }
+        
+        /* Ensure proper scrolling on mobile */
+        .tab-content {
+            overflow-x: hidden;
+        }
+        
+        /* Better touch targets for mobile */
+        @media (max-width: 768px) {
+            .btn {
+                padding: 12px 20px;
+                min-height: 44px;
+            }
+            
+            .form-control, .form-select {
+                min-height: 44px;
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="main-header">
+        <div class="container-fluid">
+            <div class="bot-info">
+                <img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Bot Avatar" class="bot-avatar" id="botAvatar">
+                <div>
+                    <h4 class="mb-0">
+                        <span class="status-indicator status-online" id="statusIndicator"></span>
+                        <span id="botName">{{ bot_name }}</span>
+                    </h4>
+                    <small class="text-muted">
+                        Welcome, <span id="username">{{ username }}</span>
+                    </small>
+                </div>
+                <div class="ms-auto">
+                    <button class="btn btn-sm btn-outline-light" onclick="refreshDashboard()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="container-fluid mt-3">
+        <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button">
+                    <i class="fas fa-home"></i> Overview
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="schedules-tab" data-bs-toggle="tab" data-bs-target="#schedules" type="button">
+                    <i class="fas fa-calendar-alt"></i> Train Schedules
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="liveroles-tab" data-bs-toggle="tab" data-bs-target="#liveroles" type="button">
+                    <i class="fas fa-video"></i> Live Roles
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="forwarding-tab" data-bs-toggle="tab" data-bs-target="#forwarding" type="button">
+                    <i class="fas fa-share"></i> Forwarding
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="twitch-tab" data-bs-toggle="tab" data-bs-target="#twitch" type="button">
+                    <i class="fab fa-twitch"></i> Twitch
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button">
+                    <i class="fas fa-users"></i> Users
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics" type="button">
+                    <i class="fas fa-chart-line"></i> Analytics
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button">
+                    <i class="fas fa-cog"></i> Settings
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content mt-4" id="dashboardTabContent">
+            <!-- Overview Tab -->
+            <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                {% include 'tabs/overview.html' %}
+            </div>
+
+            <!-- Train Schedules Tab -->
+            <div class="tab-pane fade" id="schedules" role="tabpanel">
+                {% include 'tabs/schedules.html' %}
+            </div>
+
+            <!-- Live Roles Tab -->
+            <div class="tab-pane fade" id="liveroles" role="tabpanel">
+                {% include 'tabs/liveroles.html' %}
+            </div>
+
+            <!-- Forwarding Tab -->
+            <div class="tab-pane fade" id="forwarding" role="tabpanel">
+                {% include 'tabs/forwarding.html' %}
+            </div>
+
+            <!-- Twitch Tab -->
+            <div class="tab-pane fade" id="twitch" role="tabpanel">
+                {% include 'tabs/twitch.html' %}
+            </div>
+
+            <!-- Users Tab -->
+            <div class="tab-pane fade" id="users" role="tabpanel">
+                {% include 'tabs/users.html' %}
+            </div>
+
+            <!-- Analytics Tab -->
+            <div class="tab-pane fade" id="analytics" role="tabpanel">
+                {% include 'tabs/analytics.html' %}
+            </div>
+
+            <!-- Settings Tab -->
+            <div class="tab-pane fade" id="settings" role="tabpanel">
+                {% include 'tabs/settings.html' %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Refresh dashboard data
+        function refreshDashboard() {
+            location.reload();
+        }
+        
+        // Load bot status
+        async function loadBotStatus() {
+            try {
+                const response = await fetch('/api/bot/status');
+                if (!response.ok) {
+                    console.warn(`API returned status ${response.status}`);
+                    return;
+                }
+                const data = await response.json();
+                
+                document.getElementById('statusIndicator').className = 
+                    `status-indicator ${data.online ? 'status-online' : 'status-offline'}`;
+                
+                if (data.user && data.user.name) {
+                    document.getElementById('botName').textContent = data.user.name;
+                    if (data.user.avatar) {
+                        document.getElementById('botAvatar').src = data.user.avatar;
+                    }
+                }
+            } catch (error) {
+                console.warn('Bot status unavailable:', error.message);
+                // Dashboard remains functional even if status check fails
+            }
+        }
+        
+        // Save active tab to localStorage
+        document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', event => {
+                localStorage.setItem('activeTab', event.target.id);
+            });
+        });
+        
+        // Restore active tab on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const activeTab = localStorage.getItem('activeTab');
+            if (activeTab) {
+                const tab = document.getElementById(activeTab);
+                if (tab) {
+                    const bsTab = new bootstrap.Tab(tab);
+                    bsTab.show();
+                }
+            }
+            
+            loadBotStatus();
+            setInterval(loadBotStatus, 30000); // Update every 30 seconds
+        });
+    </script>
+</body>
+</html>

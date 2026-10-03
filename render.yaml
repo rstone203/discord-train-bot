@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: discord-bot-server
+    env: python
+    plan: free
+    buildCommand: pip install -e .
+    startCommand: python main.py
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: FLASK_RUN_HOST
+        value: 0.0.0.0
+    healthCheckPath: /health

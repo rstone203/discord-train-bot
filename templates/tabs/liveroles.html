@@ -1,0 +1,346 @@
+<div class="row">
+    <!-- Configuration Card -->
+    <div class="col-lg-6 mb-4">
+        <div class="dashboard-card">
+            <h5><i class="fas fa-cog"></i> Live Role Configuration</h5>
+            <hr>
+            
+            <div class="mb-3">
+                <label class="form-label">Live Role Tracking</label>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="liveTrackingEnabled">
+                    <label class="form-check-label" for="liveTrackingEnabled">
+                        Enable automatic live role assignment
+                    </label>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Trains-Only Mode</label>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="trainsOnlyMode">
+                    <label class="form-check-label" for="trainsOnlyMode">
+                        Only assign role during active trains
+                    </label>
+                </div>
+                <small class="text-muted">
+                    When enabled, live role is only assigned 60 min before to 30 min after train start
+                </small>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Configured Role</label>
+                <div class="input-group">
+                    <select class="form-select" id="liveRoleSelect">
+                        <option value="">Loading roles...</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="saveLiveRole()">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                </div>
+                <small class="text-muted">Select a role to assign when users go live</small>
+            </div>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> 
+                <strong>How it works:</strong> Users with linked Twitch accounts automatically receive the live role when streaming.
+            </div>
+        </div>
+    </div>
+    
+    <!-- Currently Live Card -->
+    <div class="col-lg-6 mb-4">
+        <div class="dashboard-card">
+            <h5><i class="fas fa-video text-danger"></i> Currently Live</h5>
+            <hr>
+            
+            <div id="currentlyLive">
+                <div class="text-center">
+                    <div class="loading-spinner"></div>
+                    <p class="mt-2">Loading live users...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Card -->
+<div class="row">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <h5><i class="fas fa-chart-bar"></i> Live Role Statistics</h5>
+            <hr>
+            
+            <div class="row text-center">
+                <div class="col-md-3 col-6 mb-3">
+                    <h3 class="text-primary" id="stat-linked-users">--</h3>
+                    <p class="text-muted">Linked Users</p>
+                </div>
+                <div class="col-md-3 col-6 mb-3">
+                    <h3 class="text-success" id="stat-live-now">--</h3>
+                    <p class="text-muted">Live Now</p>
+                </div>
+                <div class="col-md-3 col-6 mb-3">
+                    <h3 class="text-info" id="stat-active-trains">--</h3>
+                    <p class="text-muted">Active Trains</p>
+                </div>
+                <div class="col-md-3 col-6 mb-3">
+                    <h3 class="text-warning" id="stat-trains-only">--</h3>
+                    <p class="text-muted">Trains-Only Mode</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentGuildId = null;
+
+async function loadLiveRolesData() {
+    try {
+        // Get first accessible guild
+        const guildsResp = await fetch('/api/guilds');
+        if (!guildsResp.ok) {
+            throw new Error('Failed to load guilds');
+        }
+        const guildsData = await guildsResp.json();
+        const guilds = guildsData.guilds || [];
+        
+        if (guilds.length === 0) {
+            document.getElementById('currentlyLive').innerHTML = '<p class="text-warning">No servers found</p>';
+            return;
+        }
+        
+        // Use first guild for live roles
+        currentGuildId = guilds[0].id;
+        
+        // Load settings for this guild
+        const settingsResp = await fetch(`/api/settings/${currentGuildId}`);
+        if (settingsResp.ok) {
+            const settingsData = await settingsResp.json();
+            const settings = settingsData.settings;
+            
+            document.getElementById('liveTrackingEnabled').checked = settings.live_tracking_enabled || false;
+            document.getElementById('trainsOnlyMode').checked = settings.live_role_trains_only || false;
+        }
+        
+        await loadGuildRoles(currentGuildId);
+        await loadLiveUsers(currentGuildId);
+        await loadLiveRoleStats(currentGuildId);
+        
+    } catch (error) {
+        console.error('Failed to load live roles data:', error);
+        document.getElementById('currentlyLive').innerHTML = '<p class="text-danger">Error loading data</p>';
+    }
+}
+
+async function loadGuildRoles(guildId) {
+    try {
+        const response = await fetch(`/api/guilds/${guildId}/roles`);
+        if (!response.ok) {
+            throw new Error('Failed to load roles');
+        }
+        const data = await response.json();
+        const roles = data.roles || [];
+        
+        const settingsResp = await fetch(`/api/settings/${guildId}`);
+        let currentRoleId = null;
+        if (settingsResp.ok) {
+            const settingsData = await settingsResp.json();
+            currentRoleId = settingsData.settings.live_role_id;
+        }
+        
+        const select = document.getElementById('liveRoleSelect');
+        select.innerHTML = '<option value="">No role (disabled)</option>';
+        
+        roles.forEach(role => {
+            const option = document.createElement('option');
+            option.value = role.id;
+            option.textContent = role.name;
+            if (role.id === currentRoleId) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Failed to load guild roles:', error);
+        document.getElementById('liveRoleSelect').innerHTML = '<option value="">Error loading roles</option>';
+    }
+}
+
+async function loadLiveUsers(guildId) {
+    try {
+        const response = await fetch(`/api/live-users/${guildId}`);
+        if (!response.ok) throw new Error('Failed to load live users');
+        const data = await response.json();
+        const liveUsers = data.live_users || [];
+        
+        if (liveUsers.length === 0) {
+            document.getElementById('currentlyLive').innerHTML = `
+                <div class="list-group">
+                    <div class="list-group-item list-group-item-dark d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas fa-circle text-muted"></i>
+                            <strong class="ms-2">No users currently streaming</strong>
+                        </div>
+                    </div>
+                </div>`;
+        } else {
+            const html = liveUsers.map(u => `
+                <div class="list-group-item list-group-item-dark d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-circle text-danger"></i>
+                        <strong class="ms-2" style="color: #60a5fa;">${u.discord_name}</strong>
+                        <span class="text-muted ms-2">(@${u.twitch_login})</span>
+                        ${u.game ? `<br><small class="text-muted ms-4">Playing: ${u.game}</small>` : ''}
+                    </div>
+                    <a href="${u.stream_url}" target="_blank" class="btn btn-sm btn-outline-danger">
+                        <i class="fab fa-twitch"></i> Watch
+                    </a>
+                </div>
+            `).join('');
+            document.getElementById('currentlyLive').innerHTML = `<div class="list-group">${html}</div>`;
+        }
+        
+        document.getElementById('stat-live-now').textContent = liveUsers.length;
+    } catch (error) {
+        console.error('Error loading live users:', error);
+        document.getElementById('currentlyLive').innerHTML = '<p class="text-muted">Could not load live users</p>';
+        document.getElementById('stat-live-now').textContent = '0';
+    }
+}
+
+async function loadLiveRoleStats(guildId) {
+    try {
+        const linkedResp = await fetch('/api/twitch/linked-accounts');
+        if (linkedResp.ok) {
+            const linkedData = await linkedResp.json();
+            document.getElementById('stat-linked-users').textContent = linkedData.count || 0;
+        }
+        
+        const schedulesResp = await fetch('/api/train/schedules');
+        if (schedulesResp.ok) {
+            const schedulesData = await schedulesResp.json();
+            document.getElementById('stat-active-trains').textContent = schedulesData.schedules?.length || 0;
+        }
+        
+        document.getElementById('stat-trains-only').textContent = document.getElementById('trainsOnlyMode').checked ? 'On' : 'Off';
+    } catch (error) {
+        console.error('Error loading live role stats:', error);
+    }
+}
+
+async function saveLiveRole() {
+    if (!currentGuildId) {
+        alert('No server selected');
+        return;
+    }
+    
+    const roleId = document.getElementById('liveRoleSelect').value;
+    
+    try {
+        const response = await fetch(`/api/settings/${currentGuildId}/live-role`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ live_role_id: roleId || null })
+        });
+        
+        if (response.ok) {
+            showLiveRoleAlert('Live role saved successfully!', 'success');
+        } else {
+            const error = await response.json();
+            showLiveRoleAlert(`Failed to save: ${error.error || 'Unknown error'}`, 'danger');
+        }
+    } catch (error) {
+        console.error('Error saving live role:', error);
+        showLiveRoleAlert('Error saving live role. Please try again.', 'danger');
+    }
+}
+
+function showLiveRoleAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.role = 'alert';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const firstCard = document.querySelector('.dashboard-card');
+    firstCard.insertBefore(alertDiv, firstCard.firstChild);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+
+// Event listeners for switches
+document.getElementById('liveTrackingEnabled').addEventListener('change', async function() {
+    if (!currentGuildId) {
+        alert('No server selected');
+        this.checked = !this.checked;
+        return;
+    }
+    
+    const enabled = this.checked;
+    
+    try {
+        const response = await fetch(`/api/settings/${currentGuildId}/live-role`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ live_tracking_enabled: enabled })
+        });
+        
+        if (response.ok) {
+            showLiveRoleAlert(`Live tracking ${enabled ? 'enabled' : 'disabled'}!`, 'success');
+        } else {
+            const error = await response.json();
+            showLiveRoleAlert(`Failed to update: ${error.error || 'Unknown error'}`, 'danger');
+            this.checked = !enabled; // Revert
+        }
+    } catch (error) {
+        console.error('Error updating live tracking:', error);
+        showLiveRoleAlert('Error updating setting. Please try again.', 'danger');
+        this.checked = !enabled; // Revert
+    }
+});
+
+document.getElementById('trainsOnlyMode').addEventListener('change', async function() {
+    if (!currentGuildId) {
+        alert('No server selected');
+        this.checked = !this.checked;
+        return;
+    }
+    
+    const enabled = this.checked;
+    
+    try {
+        const response = await fetch(`/api/settings/${currentGuildId}/live-role`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ live_role_trains_only: enabled })
+        });
+        
+        if (response.ok) {
+            showLiveRoleAlert(`Trains-only mode ${enabled ? 'enabled' : 'disabled'}!`, 'success');
+            document.getElementById('stat-trains-only').textContent = enabled ? 'On' : 'Off';
+        } else {
+            const error = await response.json();
+            showLiveRoleAlert(`Failed to update: ${error.error || 'Unknown error'}`, 'danger');
+            this.checked = !enabled; // Revert
+        }
+    } catch (error) {
+        console.error('Error updating trains-only mode:', error);
+        showLiveRoleAlert('Error updating setting. Please try again.', 'danger');
+        this.checked = !enabled; // Revert
+    }
+});
+
+document.getElementById('liveroles-tab').addEventListener('shown.bs.tab', loadLiveRolesData);
+</script>

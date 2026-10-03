@@ -1,0 +1,10 @@
+#!/bin/bash
+# Deployment start script for Discord Bot Server
+# This script provides a proper entry point for cloud deployments
+
+echo "🚀 Starting Discord Bot Server..."
+echo "📍 Entry point: start script"
+echo "🔄 Executing: python main.py"
+
+# Execute the main Python application
+exec python main.py

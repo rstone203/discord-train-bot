@@ -1,0 +1,50 @@
+modules = ["python-3.11", "nodejs-20", "postgresql-16"]
+
+[nix]
+channel = "stable-25_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Discord Bot Server"
+
+[[workflows.workflow]]
+name = "Discord Bot Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pip install discord.py flask psutil requests && python main.py"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[deployment]
+deploymentTarget = "vm"
+run = ["python", "main.py"]
+ignorePorts = true
+build = ["bash", "-c", "pip install discord.py flask psutil requests psycopg2-binary sqlalchemy pytz alembic && python wake_db.py"]
+
+[agent]
+integrations = ["javascript_websocket:1.0.0", "javascript_database:1.0.0", "google-sheet:1.0.0", "python_openai_ai_integrations:1.0.0", "stripe:1.0.0"]
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 60000
+
+[userenv]
+
+[userenv.shared]
+FLASK_SECRET_KEY = "121252f3999bee261867f4d595cb53ea5b4894412d39c9dfab1ca9b3832bc72e"

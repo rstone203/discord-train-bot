@@ -1,0 +1,14 @@
+[variables]
+NIXPACKS_PYTHON_VERSION = "3.11"
+
+[phases.setup]
+nixpkgs = ["python311", "postgresql"]
+
+[phases.install]
+cmds = ["pip install -e ."]
+
+[phases.build]
+cmds = ["echo 'Build complete'"]
+
+[start]
+cmd = "python main.py"
